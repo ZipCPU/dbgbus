@@ -85,7 +85,9 @@ module	hbbus(i_clk,
 	//
 	// We'll use these bus command words to drive a wishbone bus
 	//
+	// verilator lint_off UNUSED
 	wire		wb_busy;
+	// verilator lint_on UNUSED
 	wire		ow_stb;
 	wire	[33:0]	ow_word;
 	hbexec	wbexec(i_clk, w_reset, iw_stb, iw_word, wb_busy,
@@ -97,7 +99,10 @@ module	hbbus(i_clk,
 	// We'll then take the responses from the bus, and add an interrupt
 	// flag to the output any time things are idle.  This also acts
 	// as a one-stage FIFO
-	wire		int_busy, idl_busy, int_stb;
+	// verilator lint_off UNUSED
+	wire		int_busy;
+	// verilator lint_on UNUSED
+	wire		idl_busy, int_stb;
 	wire	[33:0]	int_word;
 	hbints	addints(i_clk, w_reset, i_interrupt,
 			ow_stb,  ow_word,  int_busy,

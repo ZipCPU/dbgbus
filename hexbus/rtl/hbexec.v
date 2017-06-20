@@ -305,4 +305,9 @@ module	hbexec(i_clk, i_reset,
 		o_rsp_word <= { `RSP_SUB_ADDR, o_wb_addr, 1'b0, !inc };
 	end
 
+	// verilator lint_off UNUSED
+	// Make Verilator happy
+	wire	unused;
+	assign	unused = i_cmd_rd;
+	// verilator lint_on UNUSED
 endmodule

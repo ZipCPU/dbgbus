@@ -46,9 +46,11 @@
 //
 `define	UARTSETUP	25	// Must match testbus_tb, =1Mb w/ a 100MHz ck
 //
-module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
+module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 	input	wire	i_clk;
-	input	wire	i_rst; // Ignored, but needed for our test infra.
+	// verilator lint_off UNUSED
+	input	wire	i_reset; // Ignored, but needed for our test infra.
+	// verilator lint_on UNUSED
 	input	wire	i_uart;
 	output	wire	o_uart;
 	output	reg	o_halt; // Tell the SIM when to stop
@@ -95,10 +97,9 @@ module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
 	wire	scop_int, smpl_interrupt;
 	wire	scop_ack, smpl_ack, mem_ack;
 
-	wire	null_sel, smpl_sel, scop_sel, mem_sel;
+	wire	smpl_sel, scop_sel, mem_sel;
 
 	// Nothing should be assigned to the null page
-	assign	null_sel = (wb_addr[29:4] == 26'h00);
 	assign	smpl_sel = (wb_addr[29:4] == 26'h081);
 	assign	scop_sel = (wb_addr[29:4] == 26'h082);
 	assign	mem_sel  = (wb_addr[29:12] ==18'h1);
@@ -117,6 +118,7 @@ module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
 	reg	[31:0]	smpl_register;
 	always @(posedge i_clk)
 		smpl_ack <= ((wb_stb)&&(smpl_sel));
+	assign	smpl_stall = 1'b0;
 	always @(posedge i_clk)
 		if ((wb_stb)&&(smpl_sel)&&(wb_we))
 		begin
@@ -151,7 +153,7 @@ module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
 	// A wishbone scope
 	//
 	wire	scope_trigger;
-	assign	scope_trigger = (smpl_sel)&&(wb_stb);
+	assign	scope_trigger = (mem_sel)&&(wb_stb);
 	wire	[31:0]	debug_data;
 	assign	debug_data    = { wb_cyc, wb_stb, wb_we, wb_ack, wb_stall,
 			wb_addr[5:0], 1'b1,
@@ -170,7 +172,8 @@ module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
 	// Now, let's put those bus responses together
 	//
 	always @(posedge i_clk)
-		wb_ack <= (smpl_ack)||(scop_ack);
+		wb_ack <= (smpl_ack)||(scop_ack)||(mem_ack);
+
 	always @(posedge i_clk)
 		if (smpl_ack)
 			wb_idata <= smpl_data;
@@ -181,7 +184,10 @@ module	testbus(i_clk, i_rst, i_uart, o_uart, o_halt);
 		else
 			wb_idata <= 32'h0;
 
-	assign	wb_stall = (smpl_stall)||(scop_stall)||(mem_stall);
+	assign	wb_stall = ((smpl_sel)&&(smpl_stall))
+			||((scop_sel)&&(scop_stall))
+			||((mem_sel)&&(mem_stall));
+
 	assign	bus_interrupt = (smpl_interrupt) | (scop_int);
 
 endmodule

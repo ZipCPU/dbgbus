@@ -51,7 +51,7 @@ verilate: obj_dir/Vtestbus.h
 obj_dir/Vtestbus.h: testbus.v txuartlite.v rxuartlite.v memdev.v wbscope.v
 obj_dir/Vtestbus.h: testbus.v txuartlite.v rxuartlite.v memdev.v wbscope.v
 obj_dir/Vtestbus.h: $(wildcard ../../$(BUS)/rtl/*.v)
-	verilator -trace -cc testbus.v -y ../../$(BUS)/rtl
+	verilator -Wall -trace -cc testbus.v -y ../../$(BUS)/rtl
 
 obj_dir/Vtestbus.mk:
 obj_dir/Vtestbus.cpp:

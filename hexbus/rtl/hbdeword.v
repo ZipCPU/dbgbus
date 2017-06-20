@@ -55,7 +55,6 @@ module	hbdeword(i_clk, i_reset,
 	input	wire		i_tx_busy;
 
 
-	reg	[1:0]	r_cmd;
 	reg	[3:0]	r_len;
 	reg	[31:0]	r_word;
 
@@ -104,5 +103,6 @@ module	hbdeword(i_clk, i_reset,
 			o_dw_bits <= { 1'b0, r_word[31:28] };
 
 	assign	o_dw_busy = o_dw_stb;
+
 endmodule
 

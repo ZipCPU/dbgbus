@@ -99,5 +99,11 @@ module	hbdechex(i_clk, i_stb, i_byte, o_dh_stb, o_reset, o_dh_bits);
 		endcase
 	end
 
+	// And just to keep verilator happy
+	// verilator lint_on UNUSED
+	wire	unused;
+	assign	unused = i_byte[7];
+	// verilator lint_off UNUSED
+	
 endmodule
 

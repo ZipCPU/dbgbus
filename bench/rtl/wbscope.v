@@ -100,9 +100,11 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	input	wire			i_data_clk, i_ce, i_trigger;
 	input	wire	[(BUSW-1):0]	i_data;
 	// The WISHBONE bus for reading and configuring this scope
+	// verilator lint_off UNUSED
 	input	wire			i_wb_clk, i_wb_cyc, i_wb_stb, i_wb_we;
 	input	wire			i_wb_addr; // One address line only
 	input	wire	[(BUSW-1):0]	i_wb_data;
+	// verilator lint_on UNUSED
 	output	wire			o_wb_ack, o_wb_stall;
 	output	wire	[(BUSW-1):0]	o_wb_data;
 	// And, finally, for a final flair --- offer to interrupt the CPU after
@@ -152,7 +154,7 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 			br_config <= { i_wb_data[31],
 				i_wb_data[27],
 				i_wb_data[26] };
-			br_holdoff = i_wb_data[(HOLDOFFBITS-1):0];
+			br_holdoff <= i_wb_data[(HOLDOFFBITS-1):0];
 		end else if (bw_reset_complete)
 			br_config[2] <= 1'b1;
 	assign	bw_reset_request   = (!br_config[2]);
