@@ -115,7 +115,9 @@ module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 
 
 	// A "Simple" example device
-	reg	[31:0]	smpl_register;
+	reg	[31:0]	smpl_register, power_counter;
+	reg	[29:0]	bus_err_address;
+
 	always @(posedge i_clk)
 		smpl_ack <= ((wb_stb)&&(smpl_sel));
 	assign	smpl_stall = 1'b0;
@@ -124,19 +126,35 @@ module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 		begin
 			case(wb_addr[3:0])
 			4'h1: smpl_register  <= wb_odata;
-			4'h2: smpl_interrupt <= wb_odata[0];
-			4'h3: o_halt         <= wb_odata[0];
+			4'h4: smpl_interrupt <= wb_odata[0];
+			4'h5: o_halt         <= wb_odata[0];
 			default: begin end
 			endcase
 		end
 
 	always @(posedge i_clk)
 		case(wb_addr[3:0])
-		4'h0:    smpl_data <= 32'h20170610;
+		4'h0:    smpl_data <= 32'h20170622;
 		4'h1:    smpl_data <= smpl_register;
-		4'h2:    smpl_data <= { 31'h0, smpl_interrupt };
+		4'h2:    smpl_data <= { bus_err_address, 2'b00 };
+		4'h3:    smpl_data <= power_counter;
+		4'h4:    smpl_data <= { 31'h0, smpl_interrupt };
 		default: smpl_data <= 32'h00;
 		endcase
+
+	// Start our clocks since power up counter from zero
+	initial	power_counter = 0;
+	always @(posedge i_clk)
+		// Count up from zero until the top bit is set
+		if (!power_counter[31])
+			power_counter <= power_counter + 1'b1;
+		else // Once the top bit is set, keep it set forever
+			power_counter[30:0] <= power_counter[30:0] + 1'b1;
+
+	initial	bus_err_address = 0;
+	always @(posedge i_clk)
+		if (wb_err)
+			bus_err_address <= wb_addr;
 
 	always @(posedge i_clk)
 		smpl_ack <= ((wb_stb)&&(smpl_sel));
