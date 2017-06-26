@@ -4,14 +4,16 @@
 ##
 ## Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 ##
-## Purpose:	
+## Purpose:	This Makefile guides the translation of the project RTL files
+##		into a library (Vtestbus__ALL.a) file that can then be linked
+##	with our C++ test-bench driver routine.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2017, Gisselquist Technology, LLC
+## Copyright (C) 2017, Gisselquist Technology, LLC
 ##
 ## This file is part of the debugging interface demonstration.
 ##
@@ -38,27 +40,76 @@
 ################################################################################
 ##
 ##
+# all, the first target, becomes the default target
 all:
-BUS := hexbus
+#
+# We'll place into the $(BUS) variable which (of possibly multiple) debugging
+# bus we want to test.  (Around here, I've also got wbubus and exbus as options,
+# options that are not yet in the repository ... if they ever will be.)
+BUS ?= hexbus
+#
+# Verilator places everything into obj_dir by default.  By creating a variable
+# with this name, we can adjust it and everything will adjust as appropriate
+VDIRFB  := obj_dir
+#
+# We'll need to call make in subdirectories.  Here's how we're going to do it.
+# The actual call will need to look like $(SUBMAKE) <directory> <target>
 SUBMAKE := $(MAKE) --no-print-directory -C
+#
+# In case you have verilator in a strange place that's not necessarily in your
+# path, we allow it to be overridden here.
+VERILATOR := verilator
+#
+# Verilator flags
+#	-Wall	Turn all warnings on, and stop on a warning as if an error
+#	--MMD	Build/update a dependency file, so we know when we need to
+#		rebuild
+#	-trace	Build a VCD generation facility into Verilator's output
+#	-y <dir> Let verilator know that some of our source is in the <dir>
+#		directory
+#	--Mdir <dir>	Place our output files into <dir>, or $(VDIRFB) here
+#	-cc	Create C++ output files (in $(VDIRFB)
+#
+VFLAGS := -Wall --MMD -trace -y ../../$(BUS)/rtl --Mdir $(VDIRFB) -cc
 
+#
+# Now that all of our defines are out of the way, we'll specify two default
+# targets.  The first just runs verilator.  The second actually builds our
+# library within the $(VDIRFB) directory
 .PHONY: all
 all: verilate library
 
+
+#
+# The "verilate" target doesn't produce any files.  Just insist instead
+# that the Vtestbus.h file exist
 .PHONY: verilate
-verilate: obj_dir/Vtestbus.h
+verilate: $(VDIRFB)/Vtestbus.h
 
-obj_dir/Vtestbus.h: testbus.v txuartlite.v rxuartlite.v memdev.v wbscope.v
-obj_dir/Vtestbus.h: testbus.v txuartlite.v rxuartlite.v memdev.v wbscope.v
-obj_dir/Vtestbus.h: $(wildcard ../../$(BUS)/rtl/*.v)
-	verilator -Wall -trace -cc testbus.v -y ../../$(BUS)/rtl
+#
+# Run Verilator on our RTL code
+$(VDIRFB)/Vtestbus.h:
+	$(VERILATOR) $(VFLAGS) testbus.v
 
-obj_dir/Vtestbus.mk:
-obj_dir/Vtestbus.cpp:
-
+#
+# Build the library from the Verialtor outputs.
+# This just runs make in the $(VDIRFB) directory on the file Vtestbus.mk
+# (also in the $(VDIRFB) directory)
 .PHONY: library
 library: obj_dir/Vtestbus.h
-	$(SUBMAKE) obj_dir/ -f Vtestbus.mk
+	$(SUBMAKE) $(VDIRFB)/ -f Vtestbus.mk
 
+#
+# Clean up any make by products, so we can start from scratch if we need to
+.PHONY: clean
 clean:
-	rm -rf obj_dir/
+	rm -rf $(VDIRFB)/
+
+#
+# Note and incorporate any dependency information, so that we'll know when/if
+# we need to rebuild.
+DEPS := $(wildcard $(VDIRFB)/*.d)
+
+ifneq ($(DEPS),)
+include $(DEPS)
+endif

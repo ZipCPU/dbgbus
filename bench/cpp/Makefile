@@ -4,7 +4,8 @@
 ##
 ## Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 ##
-## Purpose:	
+## Purpose:	To direct the final build of the bench testing (verilator)
+##		simulation program.
 ##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
@@ -38,57 +39,77 @@
 ################################################################################
 ##
 ##
-.PHONY: all
 # Make certain the "all" target is the first and therefore the default target
+.PHONY: all
 all:
+# we'll fill in what "all" references in a moment
+#
+# Set up some variables
 CXX	:= g++
+# Cross compilation has taught me to use an object file directory that can be
+# adjusted to reference one machine or another.
 OBJDIR	:= obj-pc
+# Our bench/rtl directory ...
 RTLD	:= ../rtl
+# This has the obj_dir subdirectory within it
 VOBJDR	:= $(RTLD)/obj_dir
+# We need to figure out the VERILATOR_ROOT variable.  This will tell us where
+# all the Grab it from Verilator -V.
 VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
 VROOT	:= $(VERILATOR_ROOT)
 VINCD   := $(VROOT)/include
-VINC	:= -I$(VINCD) -I$(VINCD)/vltstd -I$(VOBJDR)
+VINC	:= -I$(VINCD) -I$(VOBJDR)
+# We'll need to build these two Verilater files, and include them with our
+# build
 VSRCRAW := verilated.cpp verilated_vcd_c.cpp
-VSRC    := $(addprefix $(VINCD)/,verilated.cpp verilated_vcd.cpp)
+VSRC    := $(addprefix $(VINCD)/,$(VSRCRAW))
 VOBJ    := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(VSRCRAW)))
-INCS	:= -I$(RTLD) $(VINC)
+INCS	:= $(VINC)
 CFLAGS	:= -Og -g -Wall $(INCS)
 #
 all: testbus_tb
 BUS := hexbus
 SUBMAKE := $(MAKE) --no-print-directory -C
 
-# A list of our sources and headers
+# A list of our sources and headers.  These are used by the dependency generator
+# below
 SOURCES := testbus_tb.cpp uartsim.cpp
 HEADERS := $(foreach header,$(subst .cpp,.h,$(SOURCES)),$(wildcard $(header)))
 OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES))) $(VOBJ)
 #
-PROGRAMS := main_tb
-# Now the return to the "all" target, and fill in some details
+PROGRAMS := testbus_tb
+#
+# Now the return to the default/"all" target, and fill in some details
+all: $(PROGRAMS)
 
-all: testbus_tb
-
+#
+# Generic build instructions for object files
 $(OBJDIR)/%.o: %.cpp
 	$(mk-objdir)
-	$(CXX) $(CFLAGS) $(INCS) -c $< -o $@
+	$(CXX) $(CFLAGS) -c $< -o $@
 
+#
+# And we'll repeat those instructions for building object files from sources
+# within the Verilator directory found within $(VERILATOR_ROOT)
 $(OBJDIR)/%.o: $(VINCD)/%.cpp
 	$(mk-objdir)
-	$(CXX) $(CFLAGS) $(INCS) -c $< -o $@
+	$(CXX) $(CFLAGS) -c $< -o $@
 
-
-testbus_tb: $(OBJECTS) $(VOBJDR)/Vtestbus__ALL.a
-	$(CXX) $(INCS) $^ $(VOBJDR)/Vtestbus__ALL.a -o $@
 #
-# The "test" target, running hello world
+# Build our actual target.  Note the dependency on the $(OBJECTS) list of
+# object files above
+testbus_tb: $(OBJECTS) $(VOBJDR)/Vtestbus__ALL.a
+	$(CXX) $(CFLAGS) $(OBJECTS) $(VOBJDR)/Vtestbus__ALL.a -o $@
+#
+#
+# The "test" target, just runs our test bench object
 #
 .PHONY: test
-test:
+test: testbus_tb
 	./testbus_tb
 
 #
-# The "clean" target, removing any and all remaining build products
+# The "clean" target, removing any and all remaining build (and test) products
 #
 .PHONY: clean
 clean:
@@ -115,6 +136,13 @@ depends: tags
 $(OBJDIR)/depends.txt: depends
 
 #
+# Make sure the $(OBJDIR)/ directory exists.  This has taken some work to get
+# right.  While "mkdir -p $(OBJDIR)" could be used to do this as well, it
+# always bothered me that it seemed to be perpetually running.  Hence, we'll
+# first check if the directory exists, and only create it if it does not.
+# Finally, by adding the @ in front of the bash command, it won't get printed
+# to the screen.  That way ... I can run it as often as I want without getting
+# annoyed by it.  ;)
 define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
 endef
@@ -127,5 +155,8 @@ tags:	$(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
 
-
+#
+# Include our generated dependency file.  The "-" in front of the include
+# basically tells "make" to include it if it can, and ignore it if it cannot
+# be included (i.e. if it doesn't exist)
 -include $(OBJDIR)/depends.txt

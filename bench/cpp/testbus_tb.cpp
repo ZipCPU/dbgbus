@@ -63,11 +63,6 @@ public:
 		m_done = false;
 	}
 
-	void	reset(void) {
-		m_core->i_clk = 1;
-		m_core->eval();
-	}
-
 	void	trace(const char *vcd_trace_file_name) {
 		fprintf(stderr, "Opening TRACE(%s)\n", vcd_trace_file_name);
 		opentrace(vcd_trace_file_name);
@@ -88,10 +83,15 @@ public:
 	}
 
 	bool	done(void) {
-		if (!m_done)
-			return (m_done = (m_core->o_halt?1:0));
-		else
+		if (m_done)
 			return true;
+		else {
+			if (Verilated::gotFinish())
+				m_done = true;
+			else if (m_core->o_halt)
+				m_done = true;
+			return m_done;
+		}
 	}
 };
 
@@ -102,7 +102,7 @@ int	main(int argc, char **argv) {
 	tb = new TESTBUS_TB;
 
 	tb->opentrace("trace.vcd");
-	// tb->reset();
+	tb->reset();
 
 	while(!tb->done())
 		tb->tick();
