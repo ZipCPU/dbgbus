@@ -62,6 +62,16 @@ module	hbnewline(i_clk, i_reset,
 	// not the following newline
 	reg	cr_state;
 
+	// The loaded register indicates whether or not we have a valid
+	// command word (that cannot be interrupted) loaded into our buffer.
+	// Valid words are anything given us from our input, as well as the
+	// line-feed following a carriage return.  We use this logic so that
+	// a desired output that should only be output when the bus is idle
+	// (such as a newline) can be pre-empted when a new command comes
+	// down the interface, but before the bus has had a chance to become
+	// idle.
+	reg	loaded;
+
 	initial	last_cr  = 1'b1;
 	initial	cr_state = 1'b0;
 	always @(posedge i_clk)
@@ -76,7 +86,8 @@ module	hbnewline(i_clk, i_reset,
 			o_nl_byte <= i_byte;
 			cr_state <= 1'b0;
 			last_cr <= (i_byte[7:0] == 8'hd);
-		end else if ((o_nl_busy)&&(!i_busy))
+			loaded  <= 1'b1;
+		end else if (!i_busy)
 		begin
 			if (!last_cr)
 			begin
@@ -84,15 +95,20 @@ module	hbnewline(i_clk, i_reset,
 				o_nl_byte <= 8'hd;
 				last_cr   <= (!i_stb);
 				o_nl_stb  <= (!i_stb);
+				loaded    <= 1'b0;
 			end else if (cr_state)
 			begin
 				cr_state  <= 1'b0;
 				o_nl_byte <= 8'ha;
 				o_nl_stb  <= 1'b1;
+				loaded  <= 1'b1;
 			end else
+			begin
 				o_nl_stb  <= 1'b0;
+				o_nl_byte <= 8'hff;
+			end
 		end
 
-	assign	o_nl_busy = (o_nl_stb);
+	assign	o_nl_busy = (o_nl_stb)&&(loaded);
 
 endmodule
