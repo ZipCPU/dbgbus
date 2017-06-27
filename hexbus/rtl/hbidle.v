@@ -61,11 +61,7 @@ module	hbidle(i_clk, i_reset, i_cmd_stb, i_cmd_word, o_idl_busy,
 	// that we can send a message back just to say that we are alive.
 	//
 	reg		idle_stb;
-`ifdef	VERILATOR
-	reg	[18:0]	idle_counter;
-`else
 	reg	[27:0]	idle_counter;
-`endif
 	always @(posedge i_clk)
 		if ((i_reset)||(i_cmd_stb))
 			idle_counter <= 0;
