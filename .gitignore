@@ -20,3 +20,6 @@ tags
 cpudefs.h
 design.h
 octave-workspace
+memscope
+netuart
+wbregs

@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename:	testbus_tb.cpp
+// Filename:	regdefs.cpp
 //
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
-// Purpose:
+// Purpose:	
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -37,77 +37,52 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include <signal.h>
-#include <time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
 #include <ctype.h>
-#include <string.h>
-#include <stdint.h>
+#include "regdefs.h"
 
-#include "verilated.h"
-#include "verilated_vcd_c.h"
-#include "Vtestbus.h"
-
-#include "testb.h"
-#include "uartsim.h"
-
-#define	UARTSETUP	25
-#include "port.h"
-
-class	TESTBUS_TB : public TESTB<Vtestbus> {
-public:
-	unsigned long	m_tx_busy_count;
-	UARTSIM		m_uart;
-	bool		m_done;
-
-	TESTBUS_TB(const int tcp_port=0) : m_uart(tcp_port) {
-		m_done = false;
-	}
-
-	void	trace(const char *vcd_trace_file_name) {
-		fprintf(stderr, "Opening TRACE(%s)\n", vcd_trace_file_name);
-		opentrace(vcd_trace_file_name);
-	}
-
-	void	close(void) {
-		TESTB<Vtestbus>::closetrace();
-	}
-
-	void	tick(void) {
-		if (m_done)
-			return;
-
-		m_core->i_uart = m_uart(m_core->o_uart,
-				UARTSETUP);
-
-		TESTB<Vtestbus>::tick();
-	}
-
-	bool	done(void) {
-		if (m_done)
-			return true;
-		else {
-			if (Verilated::gotFinish())
-				m_done = true;
-			else if (m_core->o_halt)
-				m_done = true;
-			return m_done;
-		}
-	}
+const	REGNAME	raw_bregs[] = {
+	{ R_BUSERR        ,	"BUSERR"  	},
+	{ R_PWRCOUNT      ,	"PWRCOUNT"	},
+	{ R_VERSION       ,	"VERSION" 	},
+	{ R_MEM           ,	"RAM"     	},
+	{ R_SCOPE         ,	"SCOPE"   	},
+	{ R_SCOPD         ,	"SCOPD"   	}
 };
 
-TESTBUS_TB	*tb;
+// REGSDEFS.CPP.INSERT for any bus masters
+// And then from the peripherals
+// And finally any master REGS.CPP.INSERT tags
+#define	RAW_NREGS	(sizeof(raw_bregs)/sizeof(bregs[0]))
 
-int	main(int argc, char **argv) {
-	Verilated::commandArgs(argc, argv);
-	tb = new TESTBUS_TB(FPGAPORT);
+const	REGNAME		*bregs = raw_bregs;
+const	int	NREGS = RAW_NREGS;
 
-	// tb->opentrace("trace.vcd");
-	tb->reset();
+unsigned	addrdecode(const char *v) {
+	if (isalpha(v[0])) {
+		for(int i=0; i<NREGS; i++)
+			if (strcasecmp(v, bregs[i].m_name)==0)
+				return bregs[i].m_addr;
+		fprintf(stderr, "Unknown register: %s\n", v);
+		exit(-2);
+#ifdef	R_ZIPCTRL
+	} else if (strcasecmp(v, "CPU")==0) {
+		return R_ZIPCTRL;
+#endif	// R_ZIPCTRL
+#ifdef	R_ZIPDATA
+	} else if (strcasecmp(v, "CPUD")==0) {
+		return R_ZIPDATA;
+#endif	// R_ZIPDATA
+	} else
+		return strtoul(v, NULL, 0);
+}
 
-	while(!tb->done())
-		tb->tick();
-
-	tb->close();
-	exit(0);
+const	char *addrname(const unsigned v) {
+	for(int i=0; i<NREGS; i++)
+		if (bregs[i].m_addr == v)
+			return bregs[i].m_name;
+	return NULL;
 }
 

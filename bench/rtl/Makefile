@@ -8,6 +8,19 @@
 ##		into a library (Vtestbus__ALL.a) file that can then be linked
 ##	with our C++ test-bench driver routine.
 ##
+## Targets:
+##
+##	verilate
+##		This target runs Verilator to produce its files in $(VDIRFB)
+##		(i.e. in obj_dir).  This target depends upon the projects
+##		verilog files.
+##
+##	library
+##		This target tells make to CD into the $(VDIRFB) (i.e. obj_dir)
+##		directory created by verilator, and to run make on the
+##		Verilator produced output.  The result is a V(*)__ALL.a file
+##		that we can then link with later.
+##
 ## Creator:	Dan Gisselquist, Ph.D.
 ##		Gisselquist Technology, LLC
 ##
@@ -96,7 +109,7 @@ $(VDIRFB)/Vtestbus.h:
 # This just runs make in the $(VDIRFB) directory on the file Vtestbus.mk
 # (also in the $(VDIRFB) directory)
 .PHONY: library
-library: obj_dir/Vtestbus.h
+library: $(VDIRFB)/Vtestbus.h
 	$(SUBMAKE) $(VDIRFB)/ -f Vtestbus.mk
 
 #

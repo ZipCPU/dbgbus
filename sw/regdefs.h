@@ -1,10 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Filename:	testbus_tb.cpp
+// Filename:	regdefs.h
 //
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
-// Purpose:
+// Purpose:	
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
@@ -37,77 +37,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
-#include <signal.h>
-#include <time.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdint.h>
+#ifndef	REGDEFS_H
+#define	REGDEFS_H
 
-#include "verilated.h"
-#include "verilated_vcd_c.h"
-#include "Vtestbus.h"
+#define	R_VERSION       0x00002040
+#define	R_SOMETHING	0x00002044
+#define	R_BUSERR       	0x00002048
+#define	R_PWRCOUNT	0x0000204c
+#define	R_INT		0x00002050
+#define	R_HALT		0x00002054
 
-#include "testb.h"
-#include "uartsim.h"
+#define	R_SCOPE		0x00002080
+#define	R_SCOPD		0x00002084
 
-#define	UARTSETUP	25
-#include "port.h"
+#define	R_MEM		0x00004000
 
-class	TESTBUS_TB : public TESTB<Vtestbus> {
-public:
-	unsigned long	m_tx_busy_count;
-	UARTSIM		m_uart;
-	bool		m_done;
+typedef	struct {
+	unsigned	m_addr;
+	const char	*m_name;
+} REGNAME;
 
-	TESTBUS_TB(const int tcp_port=0) : m_uart(tcp_port) {
-		m_done = false;
-	}
+extern	const	REGNAME	*bregs;
+extern	const	int	NREGS;
+// #define	NREGS	(sizeof(bregs)/sizeof(bregs[0]))
 
-	void	trace(const char *vcd_trace_file_name) {
-		fprintf(stderr, "Opening TRACE(%s)\n", vcd_trace_file_name);
-		opentrace(vcd_trace_file_name);
-	}
+extern	unsigned	addrdecode(const char *v);
+extern	const	char *addrname(const unsigned v);
 
-	void	close(void) {
-		TESTB<Vtestbus>::closetrace();
-	}
-
-	void	tick(void) {
-		if (m_done)
-			return;
-
-		m_core->i_uart = m_uart(m_core->o_uart,
-				UARTSETUP);
-
-		TESTB<Vtestbus>::tick();
-	}
-
-	bool	done(void) {
-		if (m_done)
-			return true;
-		else {
-			if (Verilated::gotFinish())
-				m_done = true;
-			else if (m_core->o_halt)
-				m_done = true;
-			return m_done;
-		}
-	}
-};
-
-TESTBUS_TB	*tb;
-
-int	main(int argc, char **argv) {
-	Verilated::commandArgs(argc, argv);
-	tb = new TESTBUS_TB(FPGAPORT);
-
-	// tb->opentrace("trace.vcd");
-	tb->reset();
-
-	while(!tb->done())
-		tb->tick();
-
-	tb->close();
-	exit(0);
-}
-
+#endif	// REGDEFS_H

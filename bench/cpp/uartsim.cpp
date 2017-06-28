@@ -133,9 +133,7 @@ void	UARTSIM::setup(unsigned isetup) {
 	}
 }
 
-int	UARTSIM::nettick(int i_tx) {
-	int	o_rx = 1;
-
+void	UARTSIM::check_for_new_connections(void) {
 	if ((m_conrd < 0)&&(m_conwr<0)&&(m_skt>=0)) {
 		// Can we accept a connection?
 		struct	pollfd	pb;
@@ -150,8 +148,16 @@ int	UARTSIM::nettick(int i_tx) {
 
 			if (m_conrd < 0)
 				perror("Accept failed:");
+			// else printf("New connection accepted!\n");
 		}
 	}
+
+}
+
+int	UARTSIM::nettick(int i_tx) {
+	int	o_rx = 1, nr = 0;
+
+	check_for_new_connections();
 
 	if ((!i_tx)&&(m_last_tx))
 		m_rx_changectr = 0;
@@ -175,6 +181,7 @@ int	UARTSIM::nettick(int i_tx) {
 				if (1 != send(m_conwr, buf, 1, 0)) {
 					close(m_conwr);
 					m_conrd = m_conwr = -1;
+					// printf("Failed write, connection closed\n");
 				}
 			}
 		} else {
@@ -203,7 +210,7 @@ int	UARTSIM::nettick(int i_tx) {
 			perror("Polling error:");
 		if (pb.revents & POLLIN) {
 			char	buf[1];
-			if (1 == recv(m_conrd, buf, 1, MSG_DONTWAIT)) {
+			if (1 == (nr = recv(m_conrd, buf, 1, MSG_DONTWAIT))) {
 				m_tx_data = (-1<<(m_nbits+m_nparity+1))
 					// << nstart_bits
 					|((buf[0]<<1)&0x01fe);
@@ -228,6 +235,9 @@ int	UARTSIM::nettick(int i_tx) {
 				m_tx_state = TXDATA;
 				o_rx = 0;
 				m_tx_baudcounter = m_baud_counts-1;
+			} else if (nr == 0) {
+				m_conrd = m_conwr = -1;
+				// printf("Closing network connection\n");
 			}
 		}
 	} else if (m_tx_baudcounter <= 0) {
