@@ -44,12 +44,14 @@
 #include "regdefs.h"
 
 const	REGNAME	raw_bregs[] = {
+	{ R_VERSION       ,	"VERSION" 	},
 	{ R_BUSERR        ,	"BUSERR"  	},
 	{ R_PWRCOUNT      ,	"PWRCOUNT"	},
-	{ R_VERSION       ,	"VERSION" 	},
-	{ R_MEM           ,	"RAM"     	},
+	{ R_INT		  ,	"int"		},
+	{ R_HALT	  ,	"halt"		},
 	{ R_SCOPE         ,	"SCOPE"   	},
-	{ R_SCOPD         ,	"SCOPD"   	}
+	{ R_SCOPD         ,	"SCOPD"   	},
+	{ R_MEM           ,	"RAM"     	}
 };
 
 // REGSDEFS.CPP.INSERT for any bus masters
