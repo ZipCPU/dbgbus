@@ -113,7 +113,7 @@ other.  For now, it's worth describing the command link into the FPGA with
 the characteristics:
 
 | Keyword | Value |
-|:------------------------|-------------------|
+|:------------------------|------------------:|
 | Codeword size           | 34-bits           |
 | Compression             | None              |
 | Data bits used per byte | 4                 |
@@ -124,11 +124,11 @@ the characteristics:
 | Bytes per Write         | 2-9 | 
 | Bytes per Read          | 1  | 
 | Worst case (Write) Rate | 9(N+1)  | 
-|-------------------------|-------------------|
 
 The reverse link, coming back from the FPGA, may be summarized as:
 
-|-------------------------|-------------------|
+| Keyword | Value
+|:------------------------|------------------:|
 | Data bits used per byte | 4                 |
 | Compression             | None              |
 | Interrupt Support       | None | 
