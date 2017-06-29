@@ -43,7 +43,7 @@ describing:
    [[1]](http://zipcpu.com/blog/2017/05/19/fpga-hell.html)
    [[2]](http://zipcpu.com/blog/2017/05/22/a-vision-for-controlling-fpgas.html)
    [[3]](http://zipcpu.com/blog/2017/05/26/simpledbg.html)
-   [[4]](http://zipcpu.com/blog/2017/05/29/fft-debugging.html)
+   [[4]](http://zipcpu.com/diglent/2017/05/29/fft-debugging.html)
    [[5]](http://zipcpu.com/blog/2017/06/02/design-process.html)
    [[6]](http://zipcpu.com/blog/2017/06/16/dbg-bus-forest.html)
    [[7]](http://zipcpu.com/blog/2017/06/17/why-network-debugging.html)
