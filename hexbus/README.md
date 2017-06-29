@@ -112,7 +112,8 @@ Eventually, we'll compare and contrast various bus capabilities against each
 other.  For now, it's worth describing the command link into the FPGA with
 the characteristics:
 
-|-------------------------|-------------------|
+| Keyword | Value |
+|:------------------------|-------------------|
 | Codeword size           | 34-bits           |
 | Compression             | None              |
 | Data bits used per byte | 4                 |
