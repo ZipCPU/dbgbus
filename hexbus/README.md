@@ -38,6 +38,17 @@ describing:
 4. A description of the [software interface](sw)
    [[Ref]](http://zipcpu.com/blog/2017/06/29/sw-dbg-interface.html)
 
+5. Several articles discussing why you should care about an interface like this
+   one, or even want one within your own design
+   [[1]](http://zipcpu.com/blog/2017/05/19/fpga-hell.html)
+   [[2]](http://zipcpu.com/blog/2017/05/22/a-vision-for-controlling-fpgas.html)
+   [[3]](http://zipcpu.com/blog/2017/05/26/simpledbg.html)
+   [[4]](http://zipcpu.com/blog/2017/05/29/fft-debugging.html)
+   [[5]](http://zipcpu.com/blog/2017/06/02/design-process.html)
+   [[6]](http://zipcpu.com/blog/2017/06/16/dbg-bus-forest.html)
+   [[7]](http://zipcpu.com/blog/2017/06/17/why-network-debugging.html)
+   [[8]](http://zipcpu.com/blog/2017/06/21/looking-at-verilator.html)
+   [[9]](http://zipcpu.com/blog/2017/06/28/dbgbus-goal.html)
 
 ## Making things legible
 
@@ -112,7 +123,7 @@ Eventually, we'll compare and contrast various bus capabilities against each
 other.  For now, it's worth describing the command link into the FPGA with
 the characteristics:
 
-| Keyword | Value |
+| Performance Measure | Value |
 |:------------------------|------------------:|
 | Codeword size           | 34-bits           |
 | Compression             | None              |
@@ -127,19 +138,18 @@ the characteristics:
 
 The reverse link, coming back from the FPGA, may be summarized as:
 
-| Keyword | Value
+| Performance Measure | Value
 |:------------------------|------------------:|
 | Data bits used per byte | 4                 |
 | Compression             | None              |
-| Interrupt Support       | None | 
+| Interrupt Support       | Yes | 
 | Vector Read Support     | No | 
 | Asynchronous Read/Write | No | 
-| Commands Accepted       | Set address, Read, Write, Reset | 
+| Commands Accepted       | Set address, Read, Write, Reset, Idle, Interrupt | 
 | Bytes per Address       | 2-9 | 
 | Bytes per Write         | 1 | 
 | Bytes per Read          | 2-9 on return  | 
 | Worst case (Read) Rate | 9(N+1)  | 
-|-------------------------|-------------------|
 
 ## Not Rocket Science
 
