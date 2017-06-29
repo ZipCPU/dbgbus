@@ -23,10 +23,21 @@ This port is being developed and presented as part of the
 describing:
 
 1. An overview of a debugging wishbone interface
+   [[Ref]](http://zipcpu.com/blog/2017/06/05/wb-bridge-overview.html)
 
 2. A description of the wishbone bus master portion of the interface
+   [[Ref]](http://zipcpu.com/blog/2017/06/08/simple-wb-master.html)
 
-3. A description of the front end to this interface, 
+3. A description of the Verilog end of this interface
+   [[1]](http://zipcpu.com/blog/2017/06/14/creating-words-from-bytes.html)
+   [[2]](http://zipcpu.com/blog/2017/06/15/words-back-to-bytes.html)
+   [[3]](http://zipcpu.com/blog/2017/06/16/adding-ints.html)
+   [[4]](http://zipcpu.com/blog/2017/06/19/debug-idles.html)
+   [[5]](http://zipcpu.com/blog/2017/06/20/dbg-put-together.html)
+
+4. A description of the [software interface](sw)
+   [[Ref]](http://zipcpu.com/blog/2017/06/29/sw-dbg-interface.html)
+
 
 ## Making things legible
 
@@ -37,8 +48,9 @@ even wish to debug the link, by watching it and seeing what's going on.
 
 For this reason, every character used on this link is a printable character.
 Newlines and carriage returns among them will not break the link.  You could
-even type commands into the serial port by hand using a terminal, if you liked.
-(Not recommended, but there is a time and place for it ...)
+even type commands into the serial port by hand [using a
+terminal](http://zipcpu.com/blog/2017/06/26/dbgbus-verilator.html), if you
+like.  (Not recommended, but there is a time and place for it ...)
 
 In our port, there are four basic commands that you can send to the FPGA: 
 
@@ -66,8 +78,8 @@ The bus will then return a response to these various commands:
   response.  This response will begin with an 'A', and will end with up to
   eight 4-bit hex words.
 
-- Read request commands will receive a read response.  Read responses begin with
-  and 'R', and they are followed with up to eight hexadecimal characters
+- Read request commands will receive a read response.  Read responses begin
+  with and 'R', and they are followed with up to eight hexadecimal characters
 
 - Write requests are acknowledged with a simple 'W' per request.
 
@@ -87,12 +99,12 @@ As an example, suppose we wish to write a 0x823471 to address 0x01000.  If we
 prefix commands sent to the bus with "< " and things received with "> ", the
 interaction would look something like:
 
-{% highlight text %}
+```text
 > Z
 < A1000W823471
 > W
 > Z
-{% endhighlight %}
+```
 
 ## Hex Bus Capabilities
 
