@@ -69,11 +69,6 @@ module	hbpack(i_clk, i_reset, i_stb, i_bits, o_pck_stb, o_pck_word);
 	reg		cmd_loaded;
 	reg	[33:0]	r_word;
 
-	initial	o_pck_word[33:32] = 2'b11;
-	always @(posedge i_clk)
-		if ((i_stb)&&(i_bits[4:2] == 3'b100)) // new command
-			o_pck_word[33:32] <= i_bits[1:0];
-
 	initial	cmd_loaded = 1'b0;
 	always @(posedge i_clk)
 		if (i_reset)
