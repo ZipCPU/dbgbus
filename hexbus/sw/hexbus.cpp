@@ -447,19 +447,23 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 		// If the character is a lower case hexadecimal digit, shift our
 		// word by four bits and set the lower four bits with this
 		// value.
-		if (isdigit(m_buf[0]))
+		if (isdigit(m_buf[0])) {
+			m_isspace = false;
 			word = (word << 4) | (m_buf[0] & 0x0f);
-		else if ((m_buf[0] >= 'a')&&(m_buf[0] <= 'f'))
+		} else if ((m_buf[0] >= 'a')&&(m_buf[0] <= 'f')) {
+			m_isspace = false;
 			word = (word << 4) | ((m_buf[0] - 'a' + 10)&0x0f);
-		else {
+		} else {
 			DBGPRINTF("RCVD OTHER-CHAR, m_cmd = %02x (%c)\n",
 				m_cmd & 0x0ff, isgraph(m_cmd)?m_cmd:'.');
-			if (m_cmd == HEXB_READ) {
+			if (m_isspace) {
+				// Ignore multiple spaces
+			} else if (m_cmd == HEXB_READ) {
 				if (m_inc)
 					m_lastaddr += 4;
-				done = true;
 				DBGPRINTF("RCVD WORD: 0x%08x\n", word);
 				result = word;
+				done = true;
 			} else if (m_cmd == HEXB_ACK) {
 				// Write acknowledgement
 				if (m_inc)
@@ -470,7 +474,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			} else if (m_cmd == HEXB_ERR) {
 				DBGPRINTF("Bus error\n");
 				m_bus_err = true;
-				throw BUSERR(m_lasterr);
+				throw BUSERR(m_lastaddr);
 			} else if (m_cmd == HEXB_IDLE) {
 				abort_countdown--;
 				if (0 == abort_countdown)
@@ -483,12 +487,18 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 					(m_inc)?" INC":"");
 			} else if (m_cmd == HEXB_RESET) {
 				m_addr_set = false;
+			} else {
+				DBGPRINTF("Other OOB info read, CMD = %c (%02x)\n", isgraph(m_cmd)?m_cmd:'.', m_cmd & 0x0ff);
 			}
 
 			// Any out of band character other than a newline is
 			// a new command that we start here
-			if ((m_cmd != '\n')&&(m_cmd != '\r'))
+			if (!isspace(m_buf[0])) {
 				m_cmd = m_buf[0];
+				DBGPRINTF("SETTING-NEW-CMD VALUE, CMD = %c (%02x)\n",
+					isgraph(m_cmd)?m_cmd:'.', m_cmd & 0x0ff);
+				m_isspace = false;
+			} else m_isspace = true;
 
 			// Clear the register so we can receive the next word
 			word = 0;
@@ -506,7 +516,6 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
  * case anything else is in the stream ... we mostly ignore that here too.
  */
 void	HEXBUS::readidle(void) {
-	int		nr;
 	unsigned	word;
 
 	DBGPRINTF("READ-IDLE()\n");
@@ -517,18 +526,23 @@ void	HEXBUS::readidle(void) {
 	// Repeat as long as there are values to be read
 	while(m_dev->available()) {
 		// Read one character from the interface
-		nr = lclreadcode(&m_buf[0], 1);
+		lclreadcode(&m_buf[0], 1);	// Number read must be one
 
 		// If it's a hexadecimal digit, adjust our word register
 		if (isdigit(m_buf[0]))
 			word = (word << 4) | (m_buf[0] & 0x0f);
 		else if ((m_buf[0] >= 'a')&&(m_buf[0] <= 'f'))
 			word = (word << 4) | ((m_buf[0] - 'a' + 10)&0x0f);
-		else {
+		else if ((isspace(m_buf[0]))&&(m_isspace)) {
+			// Ignore multiple spaces in a row
+		} else {
 			// Any thing else identifies the beginning (or end)
 			// of a response word.  Deal with it based upon the
 			// last response m_cmd received.
-			if (m_cmd == HEXB_ADDR) {
+			if (m_isspace) {
+				// Ignore the previous command if we've
+				// already had a space between use
+			} else if (m_cmd == HEXB_ADDR) {
 				// Received an address word
 				m_addr_set  = true;
 				m_inc       = (word & 1) ? 0:1;
@@ -570,6 +584,7 @@ void	HEXBUS::readidle(void) {
 			// command it is.
 			if (!isspace(m_buf[0]))
 				m_cmd = m_buf[0];
+			m_isspace = (isspace(m_buf[0]))?true:false;
 			word = 0;
 		}
 	}

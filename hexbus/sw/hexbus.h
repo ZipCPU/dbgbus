@@ -59,7 +59,7 @@ private:
 
 	bool	m_interrupt_flag, m_addr_set, m_bus_err;
 	unsigned int	m_lastaddr, m_nacks;
-	bool		m_inc;
+	bool		m_inc, m_isspace;
 
 	int	m_buflen;
 	char	*m_buf, m_cmd;
