@@ -281,12 +281,7 @@ int	myaccept(int skt, int timeout) {
 }
 
 int	main(int argc, char **argv) {
-	// First, accept a network connection
-#ifndef	LOW_SPEED
 	int	skt = setup_listener(FPGAPORT);
-#else
-	int	skt = setup_listener(FPGAPORT+1);
-#endif
 	int	tty;
 	bool	done = false;
 
@@ -322,43 +317,19 @@ int	main(int argc, char **argv) {
 			perror("O/S Err:");
 			exit(-2);
 		}
-#ifndef	LOW_SPEED
-		// Set 8 bits, 4MBaud, no parity, 1 stop bit
-		// const char	set_highspeed[] = "00000600000PG00006";
-		// Set 7 bits, 4MBaud, no parity, 1 stop bit
-		if (false) {
-		const char	set_highspeed[] = "0000060G000P";
-		const char	read_qspic[] = "G0000D";
-		const char	newline[] = "\n";
-		::write(tty, newline, sizeof(newline));
-		::write(tty, read_qspic, sizeof(read_qspic));
-		::write(tty, set_highspeed, sizeof(set_highspeed));
-		::write(tty, newline, sizeof(newline));
-		printf("< "); fflush(stdout);
-		::write(STDOUT_FILENO, read_qspic, sizeof(read_qspic));
-		::write(STDOUT_FILENO, set_highspeed, sizeof(set_highspeed));
-		::write(STDOUT_FILENO, newline, sizeof(newline));
-		printf("\n"); usleep(400);
-		tcdrain(tty);
-		}
-#endif
+
 
 		cfmakeraw(&tb); // Sets no parity, 8 bits, one stop bit
 		tb.c_cflag &= (~(CRTSCTS)); // Sets no parity, 8 bit
 		tb.c_cflag &= (~(CSTOPB)); // One stop bit
-// #define	LOW_SPEED
-#ifndef	LOW_SPEED
-		// Switch to 7 bit
+
+		// 8-bit
 		tb.c_cflag &= ~(CSIZE);
-		tb.c_cflag |= CS7;
+		tb.c_cflag |= CS8;
 		// And 4 MBaud
-		cfsetispeed(&tb, B1000000);
-		cfsetospeed(&tb, B1000000);
-#else
-		// Set the speed to 115200 baud
-		cfsetispeed(&tb, B115200);
-		cfsetospeed(&tb, B115200);
-#endif
+		cfsetispeed(&tb, B4000000);
+		cfsetospeed(&tb, B4000000);
+
 		if (tcsetattr(tty, TCSANOW, &tb) < 0) {
 			printf("Could not set any TTY attributes\n");
 			perror("O/S Err:");
