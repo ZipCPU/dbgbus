@@ -89,9 +89,7 @@ module	hbexec(i_clk, i_reset,
 	output	reg			o_rsp_stb;
 	output	reg	[(CW-1):0]	o_rsp_word;
 	// Wishbone outputs
-	output	wire			o_wb_cyc;
-	output	reg			o_wb_stb;
-	output	reg			o_wb_we;
+	output	reg			o_wb_cyc, o_wb_stb, o_wb_we;
 	output	reg	[(AW-1):0]	o_wb_addr;
 	output	reg	[31:0]		o_wb_data;
 	output	wire	[3:0]		o_wb_sel;

@@ -47,8 +47,8 @@ module	hbnewline(i_clk, i_reset,
 	input	wire	[7:0]	i_byte;
 	output	wire		o_nl_busy;
 	//
-	output	wire		o_nl_stb;
-	output	wire	[7:0]	o_nl_byte;
+	output	reg		o_nl_stb;
+	output	reg	[7:0]	o_nl_byte;
 	input	wire		i_busy;
 
 	// LAST_CR will be true any time we have sent a carriage return, but
