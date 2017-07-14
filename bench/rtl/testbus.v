@@ -44,16 +44,22 @@
 `default_nettype	none
 //
 //
-`define	UARTSETUP	25	// Must match testbus_tb, =1Mb w/ a 100MHz ck
+`define	UARTSETUP	25	// Must match testbus_tb, =4Mb w/ a 100MHz ck
 //
-module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
-	input	wire	i_clk;
+module	testbus(i_clk, i_reset, i_uart, o_uart
+`ifdef	VERILATOR
+	, o_halt
+`endif
+	);
+	input	wire		i_clk;
 	// verilator lint_off UNUSED
-	input	wire	i_reset; // Ignored, but needed for our test infra.
+	input	wire		i_reset; // Ignored, but needed for our test infra.
 	// verilator lint_on UNUSED
-	input	wire	i_uart;
-	output	wire	o_uart;
-	output	reg	o_halt; // Tell the SIM when to stop
+	input	wire		i_uart;
+	output	wire		o_uart;
+`ifdef	VERILATOR
+	output	reg		o_halt; // Tell the SIM when to stop
+`endif
 
 	wire		rx_stb;
 	wire	[7:0]	rx_data;
@@ -92,10 +98,13 @@ module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 	//
 	// Define some wires for returning values to the bus from our various
 	// components
-	wire	[31:0]	smpl_data, mem_data, scop_data;
+	reg	[31:0]	smpl_data;
+	wire	[31:0]	mem_data, scop_data;
 	wire	smpl_stall, mem_stall, scop_stall;
-	wire	scop_int, smpl_interrupt;
-	wire	scop_ack, smpl_ack, mem_ack;
+	wire	scop_int;
+	reg	smpl_interrupt;
+	wire	scop_ack, mem_ack;
+	reg	smpl_ack;
 
 	wire	smpl_sel, scop_sel, mem_sel;
 
@@ -121,13 +130,16 @@ module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 	always @(posedge i_clk)
 		smpl_ack <= ((wb_stb)&&(smpl_sel));
 	assign	smpl_stall = 1'b0;
+	initial	smpl_interrupt = 1'b0;
 	always @(posedge i_clk)
 		if ((wb_stb)&&(smpl_sel)&&(wb_we))
 		begin
 			case(wb_addr[3:0])
 			4'h1: smpl_register  <= wb_odata;
 			4'h4: smpl_interrupt <= wb_odata[0];
+`ifdef	VERILATOR
 			4'h5: o_halt         <= wb_odata[0];
+`endif
 			default: begin end
 			endcase
 		end
@@ -155,9 +167,6 @@ module	testbus(i_clk, i_reset, i_uart, o_uart, o_halt);
 	always @(posedge i_clk)
 		if (wb_err)
 			bus_err_address <= wb_addr;
-
-	always @(posedge i_clk)
-		smpl_ack <= ((wb_stb)&&(smpl_sel));
 
 	//
 	// An example block RAM device
