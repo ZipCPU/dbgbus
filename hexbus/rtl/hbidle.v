@@ -66,10 +66,14 @@ module	hbidle(i_clk, i_reset, i_cmd_stb, i_cmd_word, o_idl_busy,
 `else
 	reg	[29:0]	idle_counter;
 `endif
+	initial	idle_stb = 0;
+	initial	idle_counter = 0;
 	always @(posedge i_clk)
 		if ((i_reset)||(i_cmd_stb))
+		begin
+			idle_stb <= 1'b0;
 			idle_counter <= 0;
-		else
+		end else
 			{ idle_stb, idle_counter } <= idle_counter + 1'b1;
 
 	initial	o_idl_stb = 1'b0;
