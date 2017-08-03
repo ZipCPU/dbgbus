@@ -70,6 +70,7 @@ public:
 class	NETCOMMS : public LLCOMMSI {
 public:
 	NETCOMMS(const char *dev, const int port);
+	virtual	void	close(void);
 };
 
 #endif
