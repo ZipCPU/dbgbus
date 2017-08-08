@@ -51,6 +51,7 @@ const	REGNAME	raw_bregs[] = {
 	{ R_HALT	  ,	"halt"		},
 	{ R_SCOPE         ,	"SCOPE"   	},
 	{ R_SCOPD         ,	"SCOPD"   	},
+	{ R_MEM           ,	"MEM"     	},
 	{ R_MEM           ,	"RAM"     	}
 };
 
