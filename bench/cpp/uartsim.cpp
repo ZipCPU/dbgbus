@@ -181,7 +181,7 @@ int	UARTSIM::nettick(int i_tx) {
 				if (1 != send(m_conwr, buf, 1, 0)) {
 					close(m_conwr);
 					m_conrd = m_conwr = -1;
-					// printf("Failed write, connection closed\n");
+					fprintf(stderr, "Failed write, connection closed\n");
 				}
 			}
 		} else {
@@ -236,8 +236,13 @@ int	UARTSIM::nettick(int i_tx) {
 				o_rx = 0;
 				m_tx_baudcounter = m_baud_counts-1;
 			} else if (nr == 0) {
+				close(m_conrd);
 				m_conrd = m_conwr = -1;
 				// printf("Closing network connection\n");
+			} else if (nr < 0) {
+				perror("O/S Read err:");
+				close(m_conrd);
+				m_conrd = m_conwr = -1;
 			}
 		}
 	} else if (m_tx_baudcounter <= 0) {
