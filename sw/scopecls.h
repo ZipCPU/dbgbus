@@ -220,6 +220,12 @@ public:
 	// structures, for reference when writing the VCD file.
 		void	register_trace(const char *varname,
 				unsigned nbits, unsigned shift);
+
+	unsigned operator[](unsigned addr) {
+		if ((m_data)&&(m_scoplen > 0))
+			return m_data[(addr)&(m_scoplen-1)];
+		return 0;
+	}
 };
 
 #endif	// SCOPECLS_H
