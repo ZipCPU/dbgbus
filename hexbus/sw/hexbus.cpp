@@ -95,6 +95,8 @@
 
 void	null(...) {}
 
+bool	gbl_last_readidle = true;
+
 #include <stdarg.h> // replaces the (defunct) varargs.h include file
 void	filedump(const char *fmt, ...) {
 	static	FILE *dbgfp = NULL;
@@ -111,6 +113,7 @@ void	filedump(const char *fmt, ...) {
 	vfprintf(dbgfp, fmt, args);
 	va_end(args);
 	fflush(dbgfp);
+	gbl_last_readidle = false;
 
 	// If you want the debug output to go to stderr as well, you can
 	// uncomment the next couple of lines
@@ -190,7 +193,7 @@ void	HEXBUS::writeio(const BUSW a, const BUSW v) {
 void	HEXBUS::writev(const BUSW a, const int p, const int len,
 		const BUSW *buf) {
 	char	*ptr;
-	int	nw = 0;
+	unsigned	nw = 0;
 
 	DBGPRINTF("WRITEV(%08x,%d,#%d,0x%08x ...)\n", a, p, len, buf[0]);
 
@@ -199,9 +202,9 @@ void	HEXBUS::writev(const BUSW a, const int p, const int len,
 	m_lastaddr = a; m_addr_set = true;
 	m_nacks = 0;
 
-	while(nw < len) {
+	while(nw < (unsigned)len) {
 		*ptr++ = 'W'; *ptr = '\0';
-		if (m_buf[nw] != 0) {
+		if (buf[nw] != 0) {
 			sprintf(ptr, "%x\n", buf[nw]);
 			ptr += strlen(ptr);
 		} else {
@@ -209,19 +212,23 @@ void	HEXBUS::writev(const BUSW a, const int p, const int len,
 			*ptr = '\0';
 		}
 
-		DBGPRINTF("WRITEV-SUB(%08x%s,&buf[%d])\n", a+nw, (p)?"++":"", nw);
+		DBGPRINTF("WRITEV-SUB(%08x%s,&buf[%d] = 0x%08x,ACKS=%d)\n", a+(nw<<2), (p)?"++":"", nw, buf[nw], m_nacks);
 		m_dev->write(m_buf, ptr-m_buf);
-		DBGPRINTF(">> %s\n", m_buf);
+		DBGPRINTF(">> %s", m_buf);
 
-		readidle();
+		while(m_nacks < (unsigned)nw)
+			readidle();
 
 		nw ++;
 		ptr = m_buf;
 	}
 
+	DBGPRINTF("Missing %d acks still\n", (unsigned)len-m_nacks);
 	while(m_nacks < (unsigned)len)
 		readidle();
 
+	if (p)
+		m_lastaddr += (len<<2);
 	DBGPRINTF("WR: LAST ADDRESS LEFT AT %08x\n", m_lastaddr);
 }
 
@@ -303,7 +310,9 @@ char	*HEXBUS::encode_address(const HEXBUS::BUSW a) {
 	*ptr++ = HEXB_ADDR;
 
 	// Followed by the address in lower-case hex
-	sprintf(ptr, "%x", a);
+	// While I hate providing *ALL EIGHT* hex digits to this function,
+	// failing to do so causes overflows within the hexbus right now.
+	sprintf(ptr, "%08x", a);
 
 /*
 	// If we can use an address difference, will it be valuable to do so?
@@ -390,7 +399,8 @@ void	HEXBUS::readv(const HEXBUS::BUSW a, const int inc, const int len, HEXBUS::B
 		exit(EXIT_FAILURE);
 	}
 
-	DBGPRINTF("READV::COMPLETE\n");
+	DBGPRINTF("READV::COMPLETE, [%08x] -> %08x%s\n", a, buf[0],
+		(len>1)?", ...":"");
 }
 
 /*
@@ -454,8 +464,9 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			m_isspace = false;
 			word = (word << 4) | ((m_buf[0] - 'a' + 10)&0x0f);
 		} else {
-			DBGPRINTF("RCVD OTHER-CHAR, m_cmd = %02x (%c)\n",
-				m_cmd & 0x0ff, isgraph(m_cmd)?m_cmd:'.');
+			DBGPRINTF("RCVD OTHER-CHAR(%c), m_cmd = %02x (%c), word=0x%08x\n",
+				isgraph(m_buf[0])?m_buf[0]:'.',
+				m_cmd & 0x0ff, isgraph(m_cmd)?m_cmd:'.', word);
 			if (m_isspace) {
 				// Ignore multiple spaces
 			} else if (m_cmd == HEXB_READ) {
@@ -472,13 +483,19 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			} else if (m_cmd == HEXB_INT) {
 				m_interrupt_flag = true;
 			} else if (m_cmd == HEXB_ERR) {
-				DBGPRINTF("Bus error\n");
+				DBGPRINTF("Bus error(0x%08x)-readword\n",m_lastaddr);
 				m_bus_err = true;
+				m_isspace = isspace(m_buf[0]);
+				if (!m_isspace)
+					m_cmd = m_buf[0];
 				throw BUSERR(m_lastaddr);
 			} else if (m_cmd == HEXB_IDLE) {
 				abort_countdown--;
-				if (0 == abort_countdown)
+				if (0 == abort_countdown) {
+					DBGPRINTF("Bus error(0x%08x,ABORT)\n",
+						m_lastaddr);
 					throw BUSERR(0);
+				}
 			} else if (m_cmd == HEXB_ADDR) {
 				m_addr_set  = true;
 				m_inc       = (word & 1) ? 0:1;
@@ -518,7 +535,10 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 void	HEXBUS::readidle(void) {
 	unsigned	word;
 
-	DBGPRINTF("READ-IDLE()\n");
+	if (!gbl_last_readidle) {
+		DBGPRINTF("READ-IDLE()\n");
+		gbl_last_readidle = true;
+	}
 
 	// Start by clearing the register
 	word = 0;
@@ -568,7 +588,7 @@ void	HEXBUS::readidle(void) {
 				m_nacks++;
 			} else if (m_cmd == HEXB_ERR) {
 				// On an err, throw a BUSERR exception
-				DBGPRINTF("Bus error\n");
+				DBGPRINTF("Bus error(%08x)-readidle\n", m_lastaddr);
 				m_bus_err = true;
 				throw BUSERR(m_lastaddr);
 			} else if (m_cmd == HEXB_RESET) {

@@ -51,6 +51,8 @@
 #include "llcomms.h"
 #include "devbus.h"
 
+extern	bool	gbl_last_readidle;
+
 class	HEXBUS : public DEVBUS {
 public:
 	unsigned long	m_total_nread;
@@ -73,6 +75,7 @@ private:
 		m_bus_err    = false;
 		m_cmd = 0;
 		m_nacks = 0;
+		gbl_last_readidle = true;
 	}
 
 	void	bufalloc(int len);
@@ -87,7 +90,9 @@ public:
 	HEXBUS(LLCOMMSI *comms) : m_dev(comms) { init(); }
 	virtual	~HEXBUS(void) {
 		m_dev->close();
-		if (m_buf) delete[] m_buf; m_buf = NULL;
+		if (m_buf)
+			delete[] m_buf;
+		m_buf = NULL;
 		delete	m_dev;
 	}
 

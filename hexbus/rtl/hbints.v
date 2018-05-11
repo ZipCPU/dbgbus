@@ -99,6 +99,7 @@ module	hbints(i_clk, i_reset, i_interrupt,
 		else if ((!loaded)||(!i_busy))
 			o_int_stb <= 1'b0;
 
+	initial	o_int_word = `INT_WORD;
 	always @(posedge i_clk)
 		if (i_stb)
 			o_int_word <= i_word;
