@@ -90,30 +90,44 @@ void	usage(void) {
 "\t-d\tIf given, specifies the value returned should be in decimal,\n"
 "\t\trather than hexadecimal.\n"
 "\n"
+"\t-n [host]\tAttempt to connect, via TCP/IP, to host named [host].\n"
+"\t\tThe default host is \'%s\'\n"
+"\n"
+"\t-p [port]\tAttempt to connect, via TCP/IP, to port number [port].\n"
+"\t\tThe default port is \'%d\'\n"
+"\n"
 "\tAddress is either a 32-bit value with the syntax of strtoul, or a\n"
 "\tregister name.  Register names can be found in regdefs.cpp\n"
 "\n"
 "\tIf a value is given, that value will be written to the indicated\n"
 "\taddress, otherwise the result from reading the address will be \n"
-"\twritten to the screen.\n");
+"\twritten to the screen.\n", FPGAHOST, FPGAPORT);
 }
 
 int main(int argc, char **argv) {
 	int	skp=0;
 	bool	use_decimal = false;
-	char	*map_file = NULL;
+	const char *host = FPGAHOST;
+	int	port=FPGAPORT;
 
 	skp=1;
 	for(int argn=0; argn<argc-skp; argn++) {
 		if (argv[argn+skp][0] == '-') {
 			if (argv[argn+skp][1] == 'd') {
 				use_decimal = true;
-			} else if (argv[argn+skp][1] == 'm') {
+			} else if (argv[argn+skp][1] == 'n') {
 				if (argn+skp+1 >= argc) {
-					fprintf(stderr, "ERR: No Map file given\n");
+					fprintf(stderr, "ERR: No network host given\n");
 					exit(EXIT_SUCCESS);
 				}
-				map_file = argv[argn+skp+1];
+				host = argv[argn+skp+1];
+				skp++; argn--;
+			} else if (argv[argn+skp][1] == 'p') {
+				if (argn+skp+1 >= argc) {
+					fprintf(stderr, "ERR: No network port # given\n");
+					exit(EXIT_SUCCESS);
+				}
+				port = strtoul(argv[argn+skp+1], NULL, 0);
 				skp++; argn--;
 			} else {
 				usage();
@@ -124,7 +138,7 @@ int main(int argc, char **argv) {
 			argv[argn] = argv[argn+skp];
 	} argc -= skp;
 
-	FPGAOPEN(m_fpga);
+	m_fpga = new FPGA(new NETCOMMS(host, port));
 
 	signal(SIGSTOP, closeup);
 	signal(SIGHUP, closeup);
@@ -135,13 +149,7 @@ int main(int argc, char **argv) {
 		exit(-1);
 	}
 
-	if ((map_file)&&(access(map_file, R_OK)!=0)) {
-		fprintf(stderr, "ERR: Cannot open/read map file, %s\n", map_file);
-		perror("O/S Err:");
-		exit(EXIT_FAILURE);
-	}
-
-	const char *nm, *named_address = argv[0];
+	const char *nm = NULL, *named_address = argv[0];
 	unsigned address, value;
 
 	if (isvalue(named_address)) {
@@ -151,6 +159,9 @@ int main(int argc, char **argv) {
 		address = addrdecode(named_address);
 		nm = addrname(address);
 	}
+
+	if (NULL == nm)
+		nm = "";
 
 	if (argc < 2) {
 		FPGA::BUSW	v;
@@ -169,11 +180,22 @@ int main(int argc, char **argv) {
 				isgraph(c)?c:'.', isgraph(d)?d:'.', v);
 		} catch(BUSERR b) {
 			printf("%08x (%8s) : BUS-ERROR\n", address, nm);
+		} catch(const char *er) {
+			printf("Caught bug: %s\n", er);
+			exit(EXIT_FAILURE);
 		}
 	} else {
-		value = strtoul(argv[1], NULL, 0);
-		m_fpga->writeio(address, value);
-		printf("%08x (%8s)-> %08x\n", address, nm, value);
+		try {
+			value = strtoul(argv[1], NULL, 0);
+			m_fpga->writeio(address, value);
+			printf("%08x (%8s)-> %08x\n", address, nm, value);
+		} catch(BUSERR b) {
+			printf("%08x (%8s) : BUS-ERR)R\n", address, nm);
+			exit(EXIT_FAILURE);
+		} catch(const char *er) {
+			printf("Caught bug on write: %s\n", er);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (m_fpga->poll())
