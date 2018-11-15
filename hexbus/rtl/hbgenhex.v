@@ -61,58 +61,66 @@
 //
 `default_nettype	none
 //
-module	hbgenhex(i_clk, i_stb, i_bits, o_gx_busy, o_gx_stb, o_gx_char, i_busy);
-	input	wire		i_clk;
+module	hbgenhex(i_clk, i_reset, i_stb, i_bits, o_gx_busy, o_gx_stb, o_gx_char, i_busy);
+	input	wire		i_clk, i_reset;
 	input	wire		i_stb;
 	input	wire	[4:0]	i_bits;
 	output	wire		o_gx_busy;
 	output	reg		o_gx_stb;
-	output	reg	[7:0]	o_gx_char;
+	output	reg	[6:0]	o_gx_char;
 	input	wire		i_busy;
 
 	initial	o_gx_stb    = 1'b0;
 	always @(posedge i_clk)
-		if ((i_stb)&&(!o_gx_busy))
+		if (i_reset)
+			o_gx_stb <= 1'b0;
+		else if ((i_stb)&&(!o_gx_busy))
 			o_gx_stb <= 1'b1;
 		else if (!i_busy)
 			o_gx_stb <= 1'b0;
 
-	initial	o_gx_char = 8'h00;
+	wire	[7:0]	w_gx_char;
+	always @(*)
+	case(i_bits)
+		5'h00: w_gx_char = "0";
+		5'h01: w_gx_char = "1";
+		5'h02: w_gx_char = "2";
+		5'h03: w_gx_char = "3";
+		5'h04: w_gx_char = "4";
+		5'h05: w_gx_char = "5";
+		5'h06: w_gx_char = "6";
+		5'h07: w_gx_char = "7";
+		5'h08: w_gx_char = "8";
+		5'h09: w_gx_char = "9";
+		5'h0a: w_gx_char = "a";
+		5'h0b: w_gx_char = "b";
+		5'h0c: w_gx_char = "c";
+		5'h0d: w_gx_char = "d";
+		5'h0e: w_gx_char = "e";
+		5'h0f: w_gx_char = "f";
+		//
+		5'h10: w_gx_char = "R";	// Read response w/data
+		5'h11: w_gx_char = "K";	// Write ACK
+		5'h12: w_gx_char = "A";	// Address was set
+		5'h13: w_gx_char = "S";	// Special
+		//
+		5'h18: w_gx_char = "T";	// reseT
+		5'h19: w_gx_char = "E";	// BUS Error
+		5'h1a: w_gx_char = "I";	// Interrupt
+		5'h1b: w_gx_char = "Z";	// I'm here, but slping
+		default: w_gx_char = 8'hd;	// Carriage return
+		endcase
+
+	initial	o_gx_char = 7'h00;
 	always @(posedge i_clk)
 		if ((i_stb)&&(!o_gx_busy))
-		begin
-			case(i_bits)
-			5'h00: o_gx_char <= "0";
-			5'h01: o_gx_char <= "1";
-			5'h02: o_gx_char <= "2";
-			5'h03: o_gx_char <= "3";
-			5'h04: o_gx_char <= "4";
-			5'h05: o_gx_char <= "5";
-			5'h06: o_gx_char <= "6";
-			5'h07: o_gx_char <= "7";
-			5'h08: o_gx_char <= "8";
-			5'h09: o_gx_char <= "9";
-			5'h0a: o_gx_char <= "a";
-			5'h0b: o_gx_char <= "b";
-			5'h0c: o_gx_char <= "c";
-			5'h0d: o_gx_char <= "d";
-			5'h0e: o_gx_char <= "e";
-			5'h0f: o_gx_char <= "f";
-			//
-			5'h10: o_gx_char <= "R";	// Read response w/data
-			5'h11: o_gx_char <= "K";	// Write ACK
-			5'h12: o_gx_char <= "A";	// Address was set
-			5'h13: o_gx_char <= "S";	// Special
-			//
-			5'h18: o_gx_char <= "T";	// reseT
-			5'h19: o_gx_char <= "E";	// BUS Error
-			5'h1a: o_gx_char <= "I";	// Interrupt
-			5'h1b: o_gx_char <= "Z";	// I'm here, but slping
-			default: o_gx_char <= 8'hd;	// Carriage return
-			endcase
-		end
+			o_gx_char <= w_gx_char[6:0];
 
 	assign	o_gx_busy = o_gx_stb;
 
+	// verilator lint_off UNUSED
+	wire	unused;
+	assign	unused = w_gx_char[7];
+	// verilator lint_on  UNUSED
 endmodule
 

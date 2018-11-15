@@ -52,6 +52,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 `define	CMD_SUB_RD	2'b00
 `define	CMD_SUB_WR	2'b01
 `define	CMD_SUB_BUS	1'b0
@@ -200,9 +202,9 @@ module	hbexec(i_clk, i_reset,
 			// down the number of bits required in a set address
 			// request.
 			if (!i_cmd_word[1])
-				o_wb_addr <= i_cmd_word[31:2];
+				o_wb_addr <= i_cmd_word[AW+1:2];
 			else
-				o_wb_addr <= i_cmd_word[31:2] + o_wb_addr;
+				o_wb_addr <= i_cmd_word[AW+1:2] + o_wb_addr;
 
 			//
 			// We'll allow that bus requests can either increment
@@ -230,7 +232,7 @@ module	hbexec(i_clk, i_reset,
 		// takes a clock to do.  Hence, we'll use "newaddr" as a flag
 		// that o_wb_addr has a new value in it that needs to be
 		// returned via the command link.
-		newaddr <= ((i_cmd_addr)&&(!o_cmd_busy));
+		newaddr <= ((!i_reset)&&(i_cmd_addr)&&(!o_cmd_busy));
 	end
 
 	//
@@ -308,4 +310,95 @@ module	hbexec(i_clk, i_reset,
 	wire	unused;
 	assign	unused = i_cmd_rd;
 	// verilator lint_on UNUSED
+`ifdef	FORMAL
+`ifdef	HBEXEC
+`define	ASSUME	assume
+`define	ASSERT	assert
+`else
+`define	ASSUME	assert
+`define	ASSERT	assume
+`endif
+
+	reg	f_past_valid;
+	initial	f_past_valid = 1'b0;
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+	initial	`ASSUME(i_reset);
+
+	localparam	F_LGDEPTH=2;
+	wire	[F_LGDEPTH-1:0]	f_nreqs, f_nacks, f_outstanding;
+
+	fwb_master #( .AW(AW),.F_MAX_STALL(3),.F_MAX_ACK_DELAY(3),
+			.F_LGDEPTH(F_LGDEPTH)
+		) fwbi(i_clk, i_reset,
+			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
+				o_wb_sel, i_wb_ack, i_wb_stall, i_wb_data,
+				i_wb_err,
+			f_nreqs, f_nacks, f_outstanding);
+
+	always @(*)
+	if (o_wb_cyc)
+		`ASSERT(o_cmd_busy);
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(o_cmd_busy))&&($past(i_cmd_stb)))
+	begin
+		assume($stable(i_cmd_stb));
+		assume($stable(i_cmd_word));
+	end
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(i_cmd_addr))&&(!$past(o_cmd_busy)))
+	begin
+		`ASSERT(newaddr);
+		if ($past(i_cmd_word[1]))
+			`ASSERT(o_wb_addr == $past(i_cmd_word[AW+1:2]+o_wb_addr));
+		else
+			`ASSERT(o_wb_addr == $past(i_cmd_word[AW+1:2]));
+	end
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(newaddr)))
+	begin
+		`ASSERT(o_rsp_stb  <= newaddr);
+		`ASSERT(o_rsp_word == { `RSP_SUB_ADDR,
+				$past(o_wb_addr), 1'b0, !$past(inc) });
+	end
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(o_wb_cyc))&&(o_wb_cyc))
+		`ASSERT($stable(o_wb_we));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(o_wb_cyc))&&($past(i_wb_ack)))
+	begin
+		if ($past(o_wb_we))
+			`ASSERT(o_rsp_word == `RSP_WRITE_ACKNOWLEDGEMENT);
+		else
+			`ASSERT(o_rsp_word == { `RSP_SUB_DATA, i_wb_data });
+	end
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(i_reset)))
+		`ASSERT((o_rsp_stb)&&(o_rsp_word == `RSP_RESET));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(o_wb_cyc))&&($past(i_wb_err)))
+		`ASSERT((o_rsp_stb)&&(o_rsp_word == `RSP_BUS_ERROR));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(i_cmd_addr))&&(!$past(o_cmd_busy)))
+	begin
+		if ($past(i_cmd_wr))
+			`ASSERT((o_wb_cyc)&&(o_wb_stb)&&(o_wb_we));
+		if ($past(i_cmd_rd))
+			`ASSERT((o_wb_cyc)&&(o_wb_stb)&&(!o_wb_we));
+	end
+
+`endif
 endmodule

@@ -1,0 +1,16 @@
+[options]
+mode prove
+depth 40
+
+[engines]
+smtbmc yices
+# smtbmc boolector
+# smtbmc z3
+
+[script]
+# read -sv pport.v
+read_verilog -DHBNEWLINE -formal hbnewline.v
+prep -top hbnewline
+
+[files]
+../../rtl/hexbus/hbnewline.v

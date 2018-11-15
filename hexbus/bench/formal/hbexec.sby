@@ -1,0 +1,14 @@
+[options]
+mode prove
+
+[engines]
+smtbmc
+
+[script]
+read -sv fwb_master.v
+read -sv hbexec.v
+prep -top hbexec
+
+[files]
+fwb_master.v
+../../rtl/hbexec.v

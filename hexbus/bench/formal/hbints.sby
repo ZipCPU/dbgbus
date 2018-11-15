@@ -1,0 +1,15 @@
+[options]
+mode prove
+depth 40
+
+[engines]
+smtbmc yices
+# smtbmc boolector
+# smtbmc z3
+
+[script]
+read_verilog -DHBINTS -formal hbints.v
+prep -top hbints
+
+[files]
+../../rtl/hexbus/hbints.v
