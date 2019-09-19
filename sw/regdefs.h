@@ -52,7 +52,7 @@
 
 #define	R_MEM		0x00004000
 
-static const int	BAUDRATE=4000000;
+#define DEFBAUDRATE	4000000
 
 typedef	struct {
 	unsigned	m_addr;
