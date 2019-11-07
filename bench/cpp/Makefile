@@ -159,4 +159,6 @@ tags:	$(SOURCES) $(HEADERS)
 # Include our generated dependency file.  The "-" in front of the include
 # basically tells "make" to include it if it can, and ignore it if it cannot
 # be included (i.e. if it doesn't exist)
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
+endif
