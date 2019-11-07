@@ -44,13 +44,13 @@
 `default_nettype	none
 //
 //
-`define	UARTSETUP	25	// Must match testbus_tb, =4Mb w/ a 100MHz ck
 //
 module	testbus(i_clk, i_reset, i_uart, o_uart
 `ifdef	VERILATOR
 	, o_halt
 `endif
 	);
+	parameter	UARTSETUP = 25;	// Must match testbus_tb, =4Mb w/ a 100MHz ck
 	input	wire		i_clk;
 	// verilator lint_off UNUSED
 	input	wire		i_reset; // Ignored, but needed for our test infra.
@@ -63,12 +63,12 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 
 	wire		rx_stb;
 	wire	[7:0]	rx_data;
-	rxuartlite #(`UARTSETUP) rxtransport(i_clk,
+	rxuartlite #(24,UARTSETUP) rxtransport(i_clk,
 					i_uart, rx_stb, rx_data);
 
 	wire		tx_stb, tx_busy;
 	wire	[7:0]	tx_data;
-	txuartlite #(`UARTSETUP) txtransport(i_clk,
+	txuartlite #(24,UARTSETUP) txtransport(i_clk,
 					tx_stb, tx_data, o_uart, tx_busy);
 
 
