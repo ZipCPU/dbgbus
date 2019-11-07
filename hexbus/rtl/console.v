@@ -53,7 +53,6 @@ module	console(i_clk, i_reset,
 		o_console_rx_int, o_console_tx_int,
 		o_console_rxfifo_int, o_console_txfifo_int);
 	parameter [3:0]	LGFLEN = 0;
-	parameter [0:0]	HARDWARE_FLOW_CONTROL_PRESENT = 1'b1;
 	// Perform a simple/quick bounds check on the log FIFO length, to make
 	// sure its within the bounds we can support with our current
 	// interface.
@@ -370,4 +369,48 @@ module	console(i_clk, i_reset,
 	wire	[19+5-1:0]	unused;
 	assign	unused = { i_wb_data[31:13], i_wb_data[11:7] };
 	// verilator lint_on UNUSED
+`ifdef	FORMAL
+	reg	f_past_valid;
+	initial	f_past_valid = 1'b0;
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+	always @(*)
+	if (!f_past_valid)
+		assume(i_reset);
+
+	localparam	F_LGDEPTH = 3;
+
+	wire	[F_LGDEPTH-1:0]	f_nreq, f_nack, f_outstanding;
+
+	fwb_slave #( .AW(4),.DW(32), .F_LGDEPTH(F_LGDEPTH),
+		.F_MAX_STALL(1), .F_MAX_ACK_DELAY(3)
+		) fwb(i_clk, i_reset,
+			i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
+					4'hf,
+				o_wb_ack, o_wb_stall, o_wb_data, 1'b0,
+			f_nreq, f_nack, f_outstanding);
+
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(o_console_stb))&&($past(i_console_busy)))
+		assert(($stable(o_console_stb))&&($stable(o_console_data)));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(i_console_stb)))
+		assert(o_console_rx_int);
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(o_console_stb))
+		assert(!o_console_tx_int);
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!o_console_stb))
+		assert((o_console_tx_int)&&(o_console_txfifo_int));
+
+	always @(*)
+	if ((!i_reset)&&(i_wb_cyc))
+		assert(f_outstanding == o_wb_ack + r_wb_ack);
+`endif
 endmodule
