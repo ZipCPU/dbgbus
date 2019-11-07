@@ -127,6 +127,7 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 	reg	[31:0]	smpl_register, power_counter;
 	reg	[29:0]	bus_err_address;
 
+	initial	smpl_ack = 1'b0;
 	always @(posedge i_clk)
 		smpl_ack <= ((wb_stb)&&(smpl_sel));
 	assign	smpl_stall = 1'b0;
@@ -198,6 +199,7 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 	//
 	// Now, let's put those bus responses together
 	//
+	initial	wb_ack = 1'b0;
 	always @(posedge i_clk)
 		wb_ack <= (smpl_ack)||(scop_ack)||(mem_ack);
 

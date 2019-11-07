@@ -33,7 +33,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -72,14 +72,12 @@ module	hbgenhex(i_clk, i_reset, i_stb, i_bits, o_gx_busy, o_gx_stb, o_gx_char, i
 
 	initial	o_gx_stb    = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			o_gx_stb <= 1'b0;
-		else if ((i_stb)&&(!o_gx_busy))
-			o_gx_stb <= 1'b1;
-		else if (!i_busy)
-			o_gx_stb <= 1'b0;
+	if (i_reset)
+		o_gx_stb <= 1'b0;
+	else if (!o_gx_busy)
+		o_gx_stb <= i_stb;
 
-	wire	[7:0]	w_gx_char;
+	reg	[7:0]	w_gx_char;
 	always @(*)
 	case(i_bits)
 		5'h00: w_gx_char = "0";
@@ -107,20 +105,46 @@ module	hbgenhex(i_clk, i_reset, i_stb, i_bits, o_gx_busy, o_gx_stb, o_gx_char, i
 		5'h18: w_gx_char = "T";	// reseT
 		5'h19: w_gx_char = "E";	// BUS Error
 		5'h1a: w_gx_char = "I";	// Interrupt
-		5'h1b: w_gx_char = "Z";	// I'm here, but slping
+		5'h1b: w_gx_char = "Z";	// Zzzz -- I'm here, but sleeping
 		default: w_gx_char = 8'hd;	// Carriage return
 		endcase
 
 	initial	o_gx_char = 7'h00;
 	always @(posedge i_clk)
-		if ((i_stb)&&(!o_gx_busy))
-			o_gx_char <= w_gx_char[6:0];
+	if (!o_gx_busy)
+		o_gx_char <= w_gx_char[6:0];
 
-	assign	o_gx_busy = o_gx_stb;
+	assign	o_gx_busy = (o_gx_stb)&&(i_busy);
 
-	// verilator lint_off UNUSED
+	// Verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = w_gx_char[7];
-	// verilator lint_on  UNUSED
+	// Verilator lint_on  UNUSED
+`ifdef	FORMAL
+`ifdef	HBGENHEX
+`define	ASSUME	assume
+`define	ASSERT	assert
+`else
+`define	ASSUME	assert
+`define	ASSERT	assert
+`endif
+////
+	reg	f_past_valid;
+	initial	f_past_valid = 1'b0;
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(i_stb))&&($past(o_gx_busy)))
+		`ASSUME(($stable(i_stb))&&($stable(i_bits)));
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(o_gx_stb))&&($past(i_busy)))
+		`ASSERT(($stable(o_gx_stb))&&($stable(o_gx_char)));
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&(!$past(i_busy)))
+		`ASSERT(o_gx_stb);
+`endif
 endmodule
 

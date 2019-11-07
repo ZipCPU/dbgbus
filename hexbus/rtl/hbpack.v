@@ -24,15 +24,14 @@
 //
 //	5'h13	Special, top 2-bits set to 2'b11
 //
-//	All other out of band characters are quietly ignored, with this
-//	exception: 
+//	All other out of band characters are quietly ignored
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017-2018, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //

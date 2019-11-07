@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017-2018, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -91,9 +91,9 @@ module	hbnewline(i_clk, i_reset,
 		begin
 			o_nl_stb  <= i_stb;
 			o_nl_byte <= i_byte;
-			cr_state <= (i_byte[6:0]==7'hd);
-			last_cr <= (i_byte[6:0] == 7'hd);
-			loaded  <= 1'b1;
+			cr_state  <= (i_byte[6:0]==7'hd);
+			last_cr   <= (i_byte[6:0] == 7'hd);
+			loaded    <= 1'b1;
 		end else if (!i_busy)
 		begin
 			if (!last_cr)
@@ -104,7 +104,7 @@ module	hbnewline(i_clk, i_reset,
 				o_nl_byte <= 7'hd;
 				last_cr   <= (!i_stb);
 				o_nl_stb  <= (!i_stb);
-				loaded    <= (!i_stb);
+				loaded    <= 1'b0;
 			end else if (cr_state)
 			begin
 				cr_state  <= 1'b0;
@@ -119,7 +119,9 @@ module	hbnewline(i_clk, i_reset,
 			end
 		end
 
-	assign	o_nl_busy = (o_nl_stb)&&(loaded);
+	// assign	o_nl_busy = (o_nl_stb)&&(loaded);
+	assign	o_nl_busy = ((i_busy)&&(o_nl_stb)&&(loaded))
+				||((cr_state)&&(!i_busy));
 `ifdef	FORMAL
 `ifdef	HBNEWLINE
 `define	ASSUME	assume
@@ -138,34 +140,61 @@ module	hbnewline(i_clk, i_reset,
 	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&($past(o_nl_busy)))
 		`ASSUME(($stable(i_stb))&&($stable(i_byte)));
 
+	always @(*)
+		`ASSUME(i_byte != 7'ha);
+	always @(*)
+		`ASSUME(i_byte != 7'h7f);
+
+	///////////////////////////
+	//
+	// Stability
+	//
 	always @(posedge i_clk)
 	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_nl_stb))
-				&&($past(i_busy))&&($past(o_nl_byte) != 7'hd))
-		`ASSERT(($stable(o_nl_stb))&&($stable(o_nl_byte)));
+				&&($past(i_busy)))
+	begin
+		if ($past(o_nl_byte) != 7'hd)
+			`ASSERT(($stable(o_nl_stb))&&($stable(o_nl_byte)));
+		else
+			`ASSERT((o_nl_byte == 7'hd)
+					||(o_nl_byte == $past(i_byte)));
+	end
 
+	// Forward any incoming bytes immediately to the output
 	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_nl_stb))&&(!$past(i_busy))
-				&&($past(o_nl_byte)==7'hd))
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(i_stb))&&(!$past(o_nl_busy)))
+		`ASSERT((o_nl_stb)&&(o_nl_byte == $past(i_byte)));
+
+	// Following a carriage return, always a new-line
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_nl_stb))
+			&&(!$past(i_busy))&&($past(o_nl_byte)==7'hd))
 		`ASSERT((o_nl_stb)&&(o_nl_byte == 7'ha));
 
+	// Following a newline, either a new character or nothing
 	always @(posedge i_clk)
 	if ((f_past_valid)&&($past(o_nl_stb))&&(!$past(i_busy))
 				&&($past(o_nl_byte)==7'ha))
 		`ASSERT((!o_nl_stb)||(o_nl_byte != 7'ha));
 
-	always @(posedge i_clk)
-	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&(!$past(o_nl_busy)))
-		`ASSERT((o_nl_stb)&&(o_nl_byte == $past(i_byte)));
+	always @(*)
+	if (!o_nl_stb)
+		`ASSERT(o_nl_byte == 7'h7f);
 
+
+	// Consistency checks
 	always @(*)
 	if ((o_nl_stb)&&(o_nl_byte == 7'hd))
 		`ASSERT((last_cr)&&(cr_state));
 	always @(*)
 	if ((last_cr)&&(o_nl_stb))
 		`ASSERT((o_nl_byte==7'hd)||(o_nl_byte==7'ha));
+
 	always @(*)
 	if(!i_stb)
-		`ASSERT((o_nl_byte == 7'hd)== ((last_cr)&&(cr_state)&&(loaded)));
+		`ASSERT((o_nl_byte == 7'hd)== ((last_cr)&&(cr_state)));
+
 	always @(*)
 		`ASSERT((o_nl_byte==7'ha)==
 			((o_nl_stb)&&(last_cr)&&(!cr_state)&&(loaded)));
@@ -183,12 +212,7 @@ module	hbnewline(i_clk, i_reset,
 		`ASSERT((last_cr)&&(!cr_state));
 
 	always @(*)
-		`ASSUME(i_byte != 7'ha);
-	always @(*)
-		`ASSUME(i_byte != 7'h7f);
-	always @(*)
-	if (!o_nl_stb)
-		`ASSERT((o_nl_byte == 7'h7f)||((i_stb)&&(o_nl_byte==7'hd)));
+		`ASSERT(cr_state == (o_nl_byte == 7'hd));
 
 `endif
 endmodule

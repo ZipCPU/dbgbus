@@ -1,0 +1,221 @@
+[*]
+[*] GTKWave Analyzer v3.3.66 (w)1999-2015 BSI
+[*] Thu Nov  7 16:02:13 2019
+[*]
+[dumpfile_mtime] "Thu Nov  7 16:01:19 2019"
+[dumpfile_size] 485456481
+[timestart] 10455760
+[size] 1920 1029
+[pos] -1 -1
+*-12.000000 10471010 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] TOP.
+[treeopen] TOP.testbus.
+[treeopen] TOP.testbus.genbus.
+[sst_width] 196
+[signals_width] 198
+[sst_expanded] 1
+[sst_vpaned_height] 306
+@28
+TOP.testbus.i_clk
+TOP.testbus.i_reset
+@200
+-
+@29
+[color] 3
+TOP.testbus.i_uart
+@28
+TOP.testbus.o_uart
+TOP.testbus.o_halt
+@c00200
+-Transport
+@28
+TOP.testbus.rx_stb
+@22
+TOP.testbus.rx_data[7:0]
+@820
+TOP.testbus.rx_data[7:0]
+@200
+-
+@28
+TOP.testbus.tx_stb
+@22
+TOP.testbus.tx_data[7:0]
+@28
+TOP.testbus.tx_busy
+@1401200
+-Transport
+@c00200
+-HexBus
+@28
+TOP.testbus.genbus.w_reset
+TOP.testbus.genbus.i_rx_stb
+@22
+TOP.testbus.genbus.i_rx_byte[7:0]
+@200
+-
+@28
+TOP.testbus.genbus.dec_stb
+@22
+TOP.testbus.genbus.dec_bits[4:0]
+@200
+-
+@28
+TOP.testbus.genbus.iw_stb
+@22
+TOP.testbus.genbus.iw_word[33:0]
+@200
+-
+@28
+TOP.testbus.genbus.o_wb_cyc
+TOP.testbus.genbus.o_wb_stb
+TOP.testbus.genbus.o_wb_we
+@22
+TOP.testbus.genbus.o_wb_addr[29:0]
+TOP.testbus.genbus.o_wb_data[31:0]
+TOP.testbus.genbus.o_wb_sel[3:0]
+@28
+TOP.testbus.genbus.i_wb_stall
+TOP.testbus.genbus.i_wb_ack
+@22
+TOP.testbus.genbus.i_wb_data[31:0]
+@28
+TOP.testbus.genbus.i_wb_err
+TOP.testbus.genbus.i_wb_stall
+TOP.testbus.genbus.wb_busy
+@200
+-
+@28
+TOP.testbus.genbus.ow_stb
+@22
+TOP.testbus.genbus.ow_word[33:0]
+@200
+-
+@28
+TOP.testbus.genbus.int_busy
+TOP.testbus.genbus.int_stb
+@22
+TOP.testbus.genbus.int_word[33:0]
+@200
+-
+@28
+TOP.testbus.genbus.idl_busy
+TOP.testbus.genbus.idl_stb
+@22
+TOP.testbus.genbus.idl_word[33:0]
+@200
+-
+@28
+TOP.testbus.genbus.hb_busy
+TOP.testbus.genbus.hb_stb
+@22
+TOP.testbus.genbus.hb_bits[4:0]
+@200
+-
+@28
+TOP.testbus.genbus.hx_busy
+TOP.testbus.genbus.hx_stb
+@200
+-
+@28
+TOP.testbus.genbus.nl_busy
+@200
+-
+@22
+TOP.testbus.genbus.o_tx_byte[7:0]
+@28
+TOP.testbus.genbus.o_tx_stb
+@22
+TOP.testbus.genbus.ow_word[33:0]
+@28
+TOP.testbus.genbus.w_reset
+TOP.testbus.genbus.wb_busy
+@200
+-
+@28
+TOP.testbus.genbus.i_tx_busy
+TOP.testbus.genbus.o_tx_stb
+@22
+TOP.testbus.genbus.o_tx_byte[7:0]
+@1401200
+-HexBus
+@28
+[color] 3
+TOP.testbus.wb_cyc
+[color] 3
+TOP.testbus.wb_stb
+[color] 3
+TOP.testbus.wb_we
+@22
+[color] 3
+TOP.testbus.wb_addr[29:0]
+[color] 3
+TOP.testbus.wb_odata[31:0]
+[color] 3
+TOP.testbus.wb_sel[3:0]
+@28
+[color] 2
+TOP.testbus.wb_stall
+[color] 2
+TOP.testbus.wb_ack
+@22
+[color] 2
+TOP.testbus.wb_idata[31:0]
+@28
+[color] 2
+TOP.testbus.wb_err
+@200
+-
+@28
+TOP.testbus.bus_interrupt
+@200
+-
+@22
+TOP.testbus.bus_err_address[29:0]
+TOP.testbus.power_counter[31:0]
+@200
+-
+@28
+[color] 3
+TOP.testbus.mem_sel
+TOP.testbus.mem_stall
+TOP.testbus.mem_ack
+@22
+TOP.testbus.mem_data[31:0]
+@200
+-
+@28
+TOP.testbus.scope_trigger
+@22
+TOP.testbus.debug_data[31:0]
+@200
+-
+@28
+[color] 3
+TOP.testbus.scop_sel
+TOP.testbus.scop_stall
+TOP.testbus.scop_ack
+@22
+TOP.testbus.scop_data[31:0]
+@28
+TOP.testbus.scop_int
+@200
+-
+@28
+[color] 3
+TOP.testbus.smpl_sel
+TOP.testbus.smpl_stall
+TOP.testbus.smpl_ack
+@22
+TOP.testbus.smpl_data[31:0]
+@200
+-
+@28
+TOP.testbus.smpl_interrupt
+@22
+TOP.testbus.smpl_register[31:0]
+@200
+-
+@28
+TOP.testbus.none_sel
+[pattern_trace] 1
+[pattern_trace] 0

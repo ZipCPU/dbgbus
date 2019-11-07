@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017-2018, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -57,7 +57,7 @@ module	hbints(i_clk, i_reset, i_interrupt,
 	output	reg	[33:0]	o_int_word;
 	input	wire		i_busy;
 
-	reg	int_state, pending_interrupt, loaded;
+	reg	int_state, pending_interrupt, loaded, int_loaded;
 
 	initial	int_state = 1'b0;
 	always @(posedge i_clk)
@@ -74,8 +74,7 @@ module	hbints(i_clk, i_reset, i_interrupt,
 			pending_interrupt <= 1'b0;
 		else if ((i_interrupt)&&(!int_state))
 			pending_interrupt <= 1'b1;
-		else if ((o_int_stb)&&(!i_busy)
-				&&(o_int_word[33:29] == `INT_PREFIX))
+		else if ((o_int_stb)&&(!i_busy)&&(int_loaded))
 			pending_interrupt <= 1'b0;
 
 	initial	loaded = 1'b0;
@@ -93,18 +92,24 @@ module	hbints(i_clk, i_reset, i_interrupt,
 			o_int_stb <= 1'b0;
 		else if ((i_stb)&&(!o_int_busy))
 			o_int_stb <= 1'b1;
-		else if (pending_interrupt)
+		else if ((pending_interrupt)&&((!int_loaded)||(i_busy)))
 			o_int_stb <= 1'b1;
 		else if ((!loaded)||(!i_busy))
 			o_int_stb <= 1'b0;
 
+	initial	int_loaded = 1'b1;
 	initial	o_int_word = `INT_WORD;
 	always @(posedge i_clk)
 		if ((i_stb)&&(!o_int_busy))
+		begin
+			int_loaded <= 1'b0;
 			o_int_word <= i_word;
-		else if ((!i_busy)||(!o_int_stb))
+		end else if ((!i_busy)||(!o_int_stb))
+		begin
 			// Send an interrupt
 			o_int_word <= `INT_WORD;
+			int_loaded <= 1'b1;
+		end
 
 	assign	o_int_busy = (o_int_stb)&&(loaded);
 `ifdef	FORMAL
@@ -143,6 +148,18 @@ module	hbints(i_clk, i_reset, i_interrupt,
 	if (loaded)
 		`ASSERT(o_int_stb);
 
+	always @(*)
+	if (i_stb)
+		`ASSUME(i_word != `INT_WORD);
+
+	// If we just sent an interrupt signal, then don't send another
+	always @(posedge i_clk)
+	if((f_past_valid)&&($past(o_int_stb))&&($past(o_int_word == `INT_WORD))
+				&&(!$past(i_busy)))
+		`ASSERT((!o_int_stb)||(o_int_word != `INT_WORD));
+
+	always @(*)
+		`ASSERT(int_loaded == (o_int_word == `INT_WORD));
 	/*
 	reg	f_state;
 	always @(posedge i_clk)
