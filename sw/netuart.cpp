@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -282,6 +282,7 @@ int	myaccept(int skt, int timeout) {
 }
 
 int	main(int argc, char **argv) {
+	// First, accept a network connection
 	int	skt = setup_listener(FPGAPORT);
 	int	tty;
 	bool	done = false;
@@ -296,10 +297,21 @@ int	main(int argc, char **argv) {
 	if ((argc > 1)&&(NULL != strstr(argv[1], "/ttyUSB"))) {
 		// printf("Opening %s\n", argv[1]);
 		tty = open(argv[1], O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+		printf("Could not open tty\n");
+			fprintf(stderr, "Could not open tty device, %s\n", argv[1]);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else if (argc == 1) {
 		const	char *deftty = "/dev/ttyUSB2";
 		// printf("Opening %s\n", deftty);
 		tty = open(deftty, O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+			fprintf(stderr, "Attempted to guess the TTY, but could not open %s\n", deftty);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else {
 		printf("Unknown argument: %s\n", argv[1]);
 		exit(-2);
@@ -318,7 +330,6 @@ int	main(int argc, char **argv) {
 			perror("O/S Err:");
 			exit(-2);
 		}
-
 
 		cfmakeraw(&tb); // Sets no parity, 8 bits, one stop bit
 		tb.c_cflag &= (~(CRTSCTS)); // Sets no parity, 8 bit

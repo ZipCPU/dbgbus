@@ -17,7 +17,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -374,6 +374,7 @@ void	HEXBUS::readv(const HEXBUS::BUSW a, const int inc, const int len, HEXBUS::B
 
 		// Read the result from the bus
 		buf[nread++] = readword();
+		DBGPRINTF("READV [%08x/%08x] = %08x\n", nread-1, len, buf[nread-1]);
 
 		// Clear the command buffer so we can start over
 		ptr = m_buf;
@@ -440,8 +441,9 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 	int		nr;
 	unsigned	word, result, abort_countdown;
 	bool		done = false;
+	const bool	dbg  = false;
 
-	DBGPRINTF("READ-WORD()\n");
+	if (dbg) DBGPRINTF("READ-WORD()\n");
 
 	abort_countdown = 3;
 	word = 0;
@@ -450,7 +452,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 		do {
 			nr = lclreadcode(&m_buf[0], 1);
 		} while (nr < 1);
-		DBGPRINTF("READWORD: -- lclreadcode, nr = %d, m_buf[0] = %c (%02x)\n",
+		if (dbg) DBGPRINTF("READWORD: -- lclreadcode, nr = %d, m_buf[0] = %c (%02x)\n",
 				nr, isgraph(m_buf[0])?m_buf[0]:'.',
 				m_buf[0] & 0x0ff);
 
@@ -464,7 +466,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			m_isspace = false;
 			word = (word << 4) | ((m_buf[0] - 'a' + 10)&0x0f);
 		} else {
-			DBGPRINTF("RCVD OTHER-CHAR(%c), m_cmd = %02x (%c), word=0x%08x\n",
+			if (dbg) DBGPRINTF("RCVD OTHER-CHAR(%c), m_cmd = %02x (%c), word=0x%08x\n",
 				isgraph(m_buf[0])?m_buf[0]:'.',
 				m_cmd & 0x0ff, isgraph(m_cmd)?m_cmd:'.', word);
 			if (m_isspace) {
@@ -472,7 +474,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			} else if (m_cmd == HEXB_READ) {
 				if (m_inc)
 					m_lastaddr += 4;
-				DBGPRINTF("RCVD WORD: 0x%08x\n", word);
+				if (dbg) DBGPRINTF("RCVD WORD: 0x%08x\n", word);
 				result = word;
 				done = true;
 			} else if (m_cmd == HEXB_ACK) {
@@ -483,7 +485,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			} else if (m_cmd == HEXB_INT) {
 				m_interrupt_flag = true;
 			} else if (m_cmd == HEXB_ERR) {
-				DBGPRINTF("Bus error(0x%08x)-readword\n",m_lastaddr);
+				if (dbg) DBGPRINTF("Bus error(0x%08x)-readword\n",m_lastaddr);
 				m_bus_err = true;
 				m_isspace = isspace(m_buf[0]);
 				if (!m_isspace)
@@ -492,7 +494,7 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 			} else if (m_cmd == HEXB_IDLE) {
 				abort_countdown--;
 				if (0 == abort_countdown) {
-					DBGPRINTF("Bus error(0x%08x,ABORT)\n",
+					if (dbg) DBGPRINTF("Bus error(0x%08x,ABORT)\n",
 						m_lastaddr);
 					throw BUSERR(0);
 				}
@@ -500,19 +502,19 @@ HEXBUS::BUSW	HEXBUS::readword(void) {
 				m_addr_set  = true;
 				m_inc       = (word & 1) ? 0:1;
 				m_lastaddr  = word & -4;
-				DBGPRINTF("RCVD ADDR: 0x%08x%s\n", (word&-4),
+				if (dbg) DBGPRINTF("RCVD ADDR: 0x%08x%s\n", (word&-4),
 					(m_inc)?" INC":"");
 			} else if (m_cmd == HEXB_RESET) {
 				m_addr_set = false;
 			} else {
-				DBGPRINTF("Other OOB info read, CMD = %c (%02x)\n", isgraph(m_cmd)?m_cmd:'.', m_cmd & 0x0ff);
+				if (dbg) DBGPRINTF("Other OOB info read, CMD = %c (%02x)\n", isgraph(m_cmd)?m_cmd:'.', m_cmd & 0x0ff);
 			}
 
 			// Any out of band character other than a newline is
 			// a new command that we start here
 			if (!isspace(m_buf[0])) {
 				m_cmd = m_buf[0];
-				DBGPRINTF("SETTING-NEW-CMD VALUE, CMD = %c (%02x)\n",
+				if (dbg) DBGPRINTF("SETTING-NEW-CMD VALUE, CMD = %c (%02x)\n",
 					isgraph(m_cmd)?m_cmd:'.', m_cmd & 0x0ff);
 				m_isspace = false;
 			} else m_isspace = true;

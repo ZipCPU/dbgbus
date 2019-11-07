@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2017, Gisselquist Technology, LLC
+## Copyright (C) 2015-2019, Gisselquist Technology, LLC
 ##
 ## This file is part of the debugging interface demonstration.
 ## The debugging interface demonstration is free software (firmware): you can

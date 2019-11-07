@@ -6,8 +6,8 @@
 //
 // Purpose:	This is the C++ program on the command side that will interact
 //		with a UART on an FPGA, both sending and receiving characters.
-//	Any bus interaction will call routines from this lower level library
-//	to accomplish the actual connection to and transmission to/from the board.
+//	Any bus interaction will call routines from this lower level library to
+//	accomplish the actual connection to and transmission to/from the board.
 //
 //
 // Creator:	Dan Gisselquist, Ph.D.
@@ -15,7 +15,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -73,6 +73,9 @@ void	LLCOMMSI::write(char *buf, int len) {
 	nw = ::write(m_fdw, buf, len);
 	if (nw <= 0) {
 		throw "Write-Failure";
+	} else if (nw != len) {
+		fprintf(stderr, "LLCOMMSI::ERR: %d byte write request, only %d written\n", len, nw);
+		assert(nw == len);
 	}
 	m_total_nwrit += nw;
 	assert(nw == len);
