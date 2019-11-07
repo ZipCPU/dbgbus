@@ -26,7 +26,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -273,6 +273,8 @@ module	hbexec(i_clk, i_reset,
 	// where we have data to reutrn, and zero otherwise.  If o_rsp_stb is
 	// true, then o_rsp_word is the response we want to return.  In all
 	// other cases, o_rsp_word is a don't care.
+	initial	o_rsp_stb = 1'b1;
+	initial	o_rsp_word = `RSP_RESET;
 	always @(posedge i_clk)
 	if (i_reset)
 	begin
@@ -316,7 +318,7 @@ module	hbexec(i_clk, i_reset,
 `define	ASSERT	assert
 `else
 `define	ASSUME	assert
-`define	ASSERT	assume
+`define	ASSERT	assert
 `endif
 
 	reg	f_past_valid;
@@ -336,6 +338,19 @@ module	hbexec(i_clk, i_reset,
 				o_wb_sel, i_wb_ack, i_wb_stall, i_wb_data,
 				i_wb_err,
 			f_nreqs, f_nacks, f_outstanding);
+
+	always @(posedge i_clk)
+	if ((f_outstanding > 1)||(o_wb_stb))
+		assume(!i_cmd_stb);
+
+	always @(posedge i_clk)
+	if ((!f_past_valid)||($past(i_reset)))
+	begin
+		`ASSUME(!i_cmd_stb);
+		//
+		`ASSERT(o_rsp_stb);
+		`ASSERT(o_rsp_word == `RSP_RESET);
+	end
 
 	always @(*)
 	if (o_wb_cyc)
@@ -360,9 +375,9 @@ module	hbexec(i_clk, i_reset,
 	end
 
 	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(newaddr)))
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(newaddr)))
 	begin
-		`ASSERT(o_rsp_stb  <= newaddr);
+		`ASSERT(o_rsp_stb  == 1'b1);
 		`ASSERT(o_rsp_word == { `RSP_SUB_ADDR,
 				$past(o_wb_addr), 1'b0, !$past(inc) });
 	end
@@ -378,7 +393,7 @@ module	hbexec(i_clk, i_reset,
 		if ($past(o_wb_we))
 			`ASSERT(o_rsp_word == `RSP_WRITE_ACKNOWLEDGEMENT);
 		else
-			`ASSERT(o_rsp_word == { `RSP_SUB_DATA, i_wb_data });
+			`ASSERT(o_rsp_word == { `RSP_SUB_DATA, $past(i_wb_data) });
 	end
 
 	always @(posedge i_clk)
