@@ -42,7 +42,7 @@
 ##
 # Make certain the "all" target is the first and therefore the default target
 .PHONY: all
-all:	rtl sim sw
+all:	rtl sim sw itest
 #
 SUBMAKE:= $(MAKE) --no-print-directory -C
 
@@ -81,6 +81,14 @@ rtl: verilated
 .PHONY: sim
 sim: rtl check-gpp
 	+@$(SUBMAKE) bench/cpp
+
+#
+#
+# Run a scripted test of what would be interactive, were the post to be followed
+#
+.PHONY: itest
+itest: sim
+	+@$(SUBMAKE) bench/cpp test
 
 #
 #
