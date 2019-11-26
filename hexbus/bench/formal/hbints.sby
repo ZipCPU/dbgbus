@@ -12,4 +12,4 @@ read_verilog -DHBINTS -formal hbints.v
 prep -top hbints
 
 [files]
-../../rtl/hexbus/hbints.v
+../../rtl/hbints.v
