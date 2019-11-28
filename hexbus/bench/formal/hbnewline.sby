@@ -13,4 +13,4 @@ read_verilog -DHBNEWLINE -formal hbnewline.v
 prep -top hbnewline
 
 [files]
-../../rtl/hexbus/hbnewline.v
+../../rtl/hbnewline.v
