@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -52,7 +52,7 @@
 
 #define	R_MEM		0x00004000
 
-#define DEFBAUDRATE	4000000
+static const int	BAUDRATE=4000000;
 
 typedef	struct {
 	unsigned	m_addr;

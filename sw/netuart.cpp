@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -142,10 +142,7 @@ bool	check_incoming(LINBUFS &lb, int ttyfd, int confd, int timeout) {
 	p[0].events = POLLIN | POLLERR;
 	if (confd >= 0) {
 		p[1].fd = confd;
-		p[1].events = POLLIN | POLLERR;
-#ifdef linux
-		p[1].events |=  POLLRDHUP;
-#endif
+		p[1].events = POLLIN;
 
 		nfds = 2;
 	} else nfds = 1;
@@ -288,8 +285,8 @@ int	myaccept(int skt, int timeout) {
 int	main(int argc, char **argv) {
 	int	skt = setup_listener(FPGAPORT);
 	int	tty;
-	int	baudrate = DEFBAUDRATE;
 	bool	done = false;
+	const char DEFAULT_TTY[] = "/dev/ttyUSB2";
 
 	signal(SIGSTOP, sigstop);
 	signal(SIGBUS, sigbus);
@@ -298,23 +295,26 @@ int	main(int argc, char **argv) {
 	signal(SIGINT, sigint);
 	signal(SIGHUP, sighup);
 
-	if (argc > 1) {
+	if (argc == 2) {
 		// printf("Opening %s\n", argv[1]);
 		tty = open(argv[1], O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+		printf("Could not open tty\n");
+			fprintf(stderr, "Could not open tty device, %s\n", argv[1]);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else if (argc == 1) {
-		const	char *deftty = "/dev/ttyUSB2";
 		// printf("Opening %s\n", deftty);
-		tty = open(deftty, O_RDWR | O_NONBLOCK);
+		tty = open(DEFAULT_TTY, O_RDWR | O_NONBLOCK);
+		if (tty < 0) {
+			fprintf(stderr, "Attempted to guess the TTY, but could not open %s\n", DEFAULT_TTY);
+			perror("O/S Err:");
+			exit(-1);
+		}
 	} else {
 		printf("Unknown argument: %s\n", argv[1]);
 		exit(-2);
-	}
-	if (argc > 2) {
-		baudrate = atoi(argv[2]);
-		if (baudrate < 1) {
-			printf("Unparseable/invalid baud rate %s\n", argv[2]);
-			exit(-2);
-		}
 	}
 
 	if (tty < 0) {
@@ -324,13 +324,12 @@ int	main(int argc, char **argv) {
 	} else if (isatty(tty)) {
 		struct	termios	tb;
 
-		printf("Setting up TTY for %d Baud\n", baudrate);
+		printf("Setting up TTY for %d Baud\n", BAUDRATE);
 		if (tcgetattr(tty, &tb) < 0) {
 			printf("Could not get TTY attributes\n");
 			perror("O/S Err:");
 			exit(-2);
 		}
-
 
 		cfmakeraw(&tb); // Sets no parity, 8 bits, one stop bit
 		tb.c_cflag &= (~(CRTSCTS)); // Sets no parity, 8 bit
@@ -339,9 +338,57 @@ int	main(int argc, char **argv) {
 		// 8-bit
 		tb.c_cflag &= ~(CSIZE);
 		tb.c_cflag |= CS8;
-		if (cfsetspeed(&tb, baudrate) < 0) {
-			fprintf(stderr, "Unable to set baudrate to %d\n", baudrate);
-			perror("O/S Err:");
+		if (BAUDRATE == 2400) {
+			// 2400 Baud
+			cfsetispeed(&tb, B2400);
+			cfsetospeed(&tb, B2400);
+		} else if (BAUDRATE == 9600) {
+			// 9.6 kBaud
+			cfsetispeed(&tb, B9600);
+			cfsetospeed(&tb, B9600);
+		} else if (BAUDRATE == 19200) {
+			// 19.2 kBaud
+			cfsetispeed(&tb, B19200);
+			cfsetospeed(&tb, B19200);
+		} else if (BAUDRATE == 38400) {
+			// 38.4 kBaud
+			cfsetispeed(&tb, B38400);
+			cfsetospeed(&tb, B38400);
+		} else if (BAUDRATE == 57600) {
+			// 57.6 kBaud
+			cfsetispeed(&tb, B57600);
+			cfsetospeed(&tb, B57600);
+		} else if (BAUDRATE == 115200) {
+			// 115.2kBaud
+			cfsetispeed(&tb, B115200);
+			cfsetospeed(&tb, B115200);
+		} else if (BAUDRATE == 1000000) {
+			// 1 MBaud
+			cfsetispeed(&tb, B1000000);
+			cfsetospeed(&tb, B1000000);
+		} else if (BAUDRATE == 2000000) {
+			// 2 MBaud
+			cfsetispeed(&tb, B2000000);
+			cfsetospeed(&tb, B2000000);
+		} else if (BAUDRATE == 2500000) {
+			// 2.5 MBaud
+			cfsetispeed(&tb, B2500000);
+			cfsetospeed(&tb, B2500000);
+		} else if (BAUDRATE == 3000000) {
+			// 2 MBaud
+			cfsetispeed(&tb, B3000000);
+			cfsetospeed(&tb, B3000000);
+		} else if (BAUDRATE == 3000000) {
+			// 3.5 MBaud
+			cfsetispeed(&tb, B3500000);
+			cfsetospeed(&tb, B3500000);
+		} else if (BAUDRATE == 4000000) {
+			// 4 MBaud
+			cfsetispeed(&tb, B4000000);
+			cfsetospeed(&tb, B4000000);
+		} else {
+			fprintf(stderr, "Unsupported baud rate: %d Hz\n", BAUDRATE);
+			exit(EXIT_FAILURE);
 		}
 
 		if (tcsetattr(tty, TCSANOW, &tb) < 0) {
