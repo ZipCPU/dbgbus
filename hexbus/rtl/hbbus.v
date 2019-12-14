@@ -4,14 +4,16 @@
 //
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
-// Purpose:	
+// Purpose:	This is the top level of the debug bus itself, converting
+//		8-bit input words to bus requests and bus returns to outgoing
+//	8-bit words.
 //
 // Creator:	Dan Gisselquist, Ph.D.
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -61,7 +63,25 @@ module	hbbus(i_clk,
 	input	wire			i_tx_busy;
 
 
-	wire	w_reset;	
+	wire		w_reset;
+	wire		dec_stb;
+	wire	[4:0]	dec_bits;
+	wire		iw_stb;
+	wire	[33:0]	iw_word;
+	wire		ow_stb;
+	wire	[33:0]	ow_word;
+	wire		idl_busy, int_stb;
+	wire	[33:0]	int_word;
+	wire		hb_busy, idl_stb;
+	wire	[33:0]	idl_word;
+	wire		hb_stb, hx_busy;
+	wire	[4:0]	hb_bits;
+	wire		hx_stb, nl_busy;
+	wire	[6:0]	hx_byte;
+	// verilator lint_off UNUSED
+	wire		wb_busy;
+	wire		int_busy;
+	// verilator lint_on UNUSED
 
 	//
 	//
@@ -69,27 +89,18 @@ module	hbbus(i_clk,
 	//
 	//
 	// First step, convert the incoming bytes into bits
-	wire		dec_stb;
-	wire	[4:0]	dec_bits;
 	hbdechex dechxi(i_clk,
 		i_rx_stb, i_rx_byte,
 		dec_stb, w_reset, dec_bits);
 
 
 	// ... that can then be transformed into bus command words
-	wire		iw_stb;
-	wire	[33:0]	iw_word;
 	hbpack	packxi(i_clk, w_reset,
 		dec_stb, dec_bits, iw_stb, iw_word);
 
 	//
 	// We'll use these bus command words to drive a wishbone bus
 	//
-	// verilator lint_off UNUSED
-	wire		wb_busy;
-	// verilator lint_on UNUSED
-	wire		ow_stb;
-	wire	[33:0]	ow_word;
 	hbexec	wbexec(i_clk, w_reset, iw_stb, iw_word, wb_busy,
 			ow_stb, ow_word,
 			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
@@ -99,42 +110,32 @@ module	hbbus(i_clk,
 	// We'll then take the responses from the bus, and add an interrupt
 	// flag to the output any time things are idle.  This also acts
 	// as a one-stage FIFO
-	// verilator lint_off UNUSED
-	wire		int_busy;
-	// verilator lint_on UNUSED
-	wire		idl_busy, int_stb;
-	wire	[33:0]	int_word;
 	hbints	addints(i_clk, w_reset, i_interrupt,
 			ow_stb,  ow_word,  int_busy,
 			int_stb, int_word, idl_busy);
 
-	// 
-	// 
-	// 
-	wire		hb_busy, idl_stb;
-	wire	[33:0]	idl_word;
+	//
+	//
+	//
 	hbidle	addidles(i_clk, w_reset,
 			int_stb, int_word, idl_busy,
 			idl_stb, idl_word, hb_busy);
 
 	// We'll then take that ouput from that stage, and disassemble the
 	// response word into smaller (5-bit) sized units ...
-	wire		hb_stb, hx_busy;
-	wire	[4:0]	hb_bits;
 	hbdeword unpackx(i_clk, w_reset,
 			idl_stb, idl_word, hb_busy,
 			hb_stb, hb_bits, hx_busy);
 
-	wire		hx_stb, nl_busy;
-	wire	[7:0]	hx_byte;
 	// ... that can then be transmitted back down the channel
-	hbgenhex genhex(i_clk, hb_stb, hb_bits, hx_busy,
+	hbgenhex genhex(i_clk, w_reset, hb_stb, hb_bits, hx_busy,
 			hx_stb, hx_byte, nl_busy);
 
 	//
 	// We'll also add carriage return newline pairs any time the channel
 	// goes idle
 	hbnewline addnl(i_clk, w_reset, hx_stb, hx_byte, nl_busy,
-			o_tx_stb, o_tx_byte, i_tx_busy);
+			o_tx_stb, o_tx_byte[6:0], i_tx_busy);
+	assign	o_tx_byte[7] = 1'b0;
 
 endmodule

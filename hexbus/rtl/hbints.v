@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -57,10 +57,9 @@ module	hbints(i_clk, i_reset, i_interrupt,
 	output	reg	[33:0]	o_int_word;
 	input	wire		i_busy;
 
-	reg	int_state, pending_interrupt;
+	reg	int_state, pending_interrupt, loaded, int_loaded;
 
 	initial	int_state = 1'b0;
-	initial	pending_interrupt = 1'b0;
 	always @(posedge i_clk)
 		if (i_reset)
 			int_state <= 1'b0;
@@ -69,21 +68,20 @@ module	hbints(i_clk, i_reset, i_interrupt,
 		else if ((!pending_interrupt)&&(!i_interrupt))
 			int_state <= 1'b0;
 
+	initial	pending_interrupt = 1'b0;
 	always @(posedge i_clk)
 		if (i_reset)
 			pending_interrupt <= 1'b0;
 		else if ((i_interrupt)&&(!int_state))
 			pending_interrupt <= 1'b1;
-		else if ((o_int_stb)&&(!i_busy)
-				&&(o_int_word[33:29] == `INT_PREFIX))
+		else if ((o_int_stb)&&(!i_busy)&&(int_loaded))
 			pending_interrupt <= 1'b0;
 
-	reg	loaded;
 	initial	loaded = 1'b0;
 	always @(posedge i_clk)
 		if (i_reset)
 			loaded <= 1'b0;
-		else if (i_stb)
+		else if ((i_stb)&&(!o_int_busy))
 			loaded <= 1'b1;
 		else if ((o_int_stb)&&(!i_busy))
 			loaded <= 1'b0;
@@ -92,21 +90,83 @@ module	hbints(i_clk, i_reset, i_interrupt,
 	always @(posedge i_clk)
 		if (i_reset)
 			o_int_stb <= 1'b0;
-		else if (i_stb)
+		else if ((i_stb)&&(!o_int_busy))
 			o_int_stb <= 1'b1;
-		else if (pending_interrupt)
+		else if ((pending_interrupt)&&((!int_loaded)||(i_busy)))
 			o_int_stb <= 1'b1;
 		else if ((!loaded)||(!i_busy))
 			o_int_stb <= 1'b0;
 
+	initial	int_loaded = 1'b1;
 	initial	o_int_word = `INT_WORD;
 	always @(posedge i_clk)
-		if (i_stb)
+		if ((i_stb)&&(!o_int_busy))
+		begin
+			int_loaded <= 1'b0;
 			o_int_word <= i_word;
-		else if ((pending_interrupt)&&(!loaded))
+		end else if ((!i_busy)||(!o_int_stb))
+		begin
 			// Send an interrupt
 			o_int_word <= `INT_WORD;
+			int_loaded <= 1'b1;
+		end
 
 	assign	o_int_busy = (o_int_stb)&&(loaded);
+`ifdef	FORMAL
+`ifdef	HBINTS
+`define	ASSUME	assume
+`define	ASSERT	assert
+`else
+`define	ASSUME	assert
+`define	ASSERT	assert
+`endif
 
+	reg	f_past_valid;
+	initial	f_past_valid = 1'b0;
+
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&($past(o_int_busy)))
+		`ASSUME(($stable(i_stb))&&($stable(i_word)));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_busy))&&($past(o_int_word != `INT_WORD))
+			&&($past(o_int_stb)))
+		`ASSERT(($stable(o_int_stb))&&($stable(o_int_word)));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&(!$past(o_int_busy)))
+		`ASSERT((o_int_stb)&&(o_int_word == $past(i_word)));
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&(o_int_word != `INT_WORD))
+		`ASSERT((!o_int_stb)||(loaded));
+
+	always @(*)
+	if (loaded)
+		`ASSERT(o_int_stb);
+
+	always @(*)
+	if (i_stb)
+		`ASSUME(i_word != `INT_WORD);
+
+	// If we just sent an interrupt signal, then don't send another
+	always @(posedge i_clk)
+	if((f_past_valid)&&($past(o_int_stb))&&($past(o_int_word == `INT_WORD))
+				&&(!$past(i_busy)))
+		`ASSERT((!o_int_stb)||(o_int_word != `INT_WORD));
+
+	always @(*)
+		`ASSERT(int_loaded == (o_int_word == `INT_WORD));
+	/*
+	reg	f_state;
+	always @(posedge i_clk)
+	if (f_past_valid)
+	case(f_state)
+	if ((f_past_valid)&&($past(i_interrupt))&&(!$past(int_state)))
+		f_state <= 2'b00
+	*/
+`endif
 endmodule

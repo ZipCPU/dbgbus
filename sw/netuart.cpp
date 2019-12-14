@@ -305,7 +305,7 @@ int	main(int argc, char **argv) {
 			exit(-1);
 		}
 	} else if (argc == 1) {
-		// printf("Opening %s\n", deftty);
+		// printf("Opening %s\n", DEFAULT_TTY);
 		tty = open(DEFAULT_TTY, O_RDWR | O_NONBLOCK);
 		if (tty < 0) {
 			fprintf(stderr, "Attempted to guess the TTY, but could not open %s\n", DEFAULT_TTY);

@@ -16,7 +16,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -49,7 +49,7 @@ module	hbdechex(i_clk, i_stb, i_byte, o_dh_stb, o_reset, o_dh_bits);
 	output	reg		o_reset;
 	output	reg	[4:0]	o_dh_bits;
 
-	initial	o_reset = 1'b0;
+	initial	o_reset = 1'b1;
 	always @(posedge i_clk)
 		o_reset <= (i_stb)&&(i_byte[6:0] == 7'h54);
 

@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ##
-## Copyright (C) 2015-2017, Gisselquist Technology, LLC
+## Copyright (C) 2015-2019, Gisselquist Technology, LLC
 ##
 ## This file is part of the debugging interface demonstration.
 ##
@@ -67,20 +67,23 @@ VOBJ    := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(VSRCRAW)))
 INCS	:= $(VINC)
 CFLAGS	:= -Og -g -Wall $(INCS)
 #
-all: testbus_tb
 BUS := hexbus
 SUBMAKE := $(MAKE) --no-print-directory -C
 
 # A list of our sources and headers.  These are used by the dependency generator
 # below
-SOURCES := testbus_tb.cpp uartsim.cpp
-HEADERS := $(foreach header,$(subst .cpp,.h,$(SOURCES)),$(wildcard $(header)))
-OBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(SOURCES))) $(VOBJ)
+TBSOURCES := testbus_tb.cpp uartsim.cpp
+SOURCES   := $(TBSOURCES) autotest.cpp
+TBHEADERS := $(foreach header,$(subst .cpp,.h,$(TBSOURCES)),$(wildcard $(header)))
+TBOBJECTS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(TBSOURCES))) $(VOBJ)
+AUTOSRC   := autotest.cpp uartsim.cpp
+AUTOHDR   := $(foreach header,$(subst .cpp,.h,$(AUTOSRC)),$(wildcard $(header)))
+AUTOOBJ   := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(AUTOSRC))) $(VOBJ)
 #
-PROGRAMS := testbus_tb
+PROGRAMS := testbus_tb autotest
 #
 # Now the return to the default/"all" target, and fill in some details
-all: $(PROGRAMS)
+all: $(PROGRAMS) test
 
 #
 # Generic build instructions for object files
@@ -98,15 +101,23 @@ $(OBJDIR)/%.o: $(VINCD)/%.cpp
 #
 # Build our actual target.  Note the dependency on the $(OBJECTS) list of
 # object files above
-testbus_tb: $(OBJECTS) $(VOBJDR)/Vtestbus__ALL.a
-	$(CXX) $(CFLAGS) $(OBJECTS) $(VOBJDR)/Vtestbus__ALL.a -o $@
+testbus_tb: $(TBOBJECTS) $(VOBJDR)/Vtestbus__ALL.a
+	$(CXX) $(CFLAGS) $(TBOBJECTS) $(VOBJDR)/Vtestbus__ALL.a -o $@
 #
 #
-# The "test" target, just runs our test bench object
+#
+autotest: $(AUTOOBJ) $(VOBJDR)/Vtestbus__ALL.a
+	$(CXX) $(CFLAGS) $(AUTOOBJ) $(VOBJDR)/Vtestbus__ALL.a -o $@
+
+test:
+#
+#
+# The "test" target, runs autotest to check if our core does what it should
+# without any user interaction
 #
 .PHONY: test
-test: testbus_tb
-	./testbus_tb
+test: autotest
+	./autotest
 
 #
 # The "clean" target, removing any and all remaining build (and test) products
@@ -159,4 +170,6 @@ tags:	$(SOURCES) $(HEADERS)
 # Include our generated dependency file.  The "-" in front of the include
 # basically tells "make" to include it if it can, and ignore it if it cannot
 # be included (i.e. if it doesn't exist)
+ifneq ($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
+endif

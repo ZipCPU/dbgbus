@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -94,7 +94,7 @@ module	hbidle(i_clk, i_reset, i_cmd_stb, i_cmd_word, o_idl_busy,
 		else if (!i_busy)
 			o_idl_word <= `IDLE_WORD;
 
-	assign	o_idl_busy = o_idl_stb;
+	assign	o_idl_busy = (o_idl_stb)&&(i_busy);
 
 endmodule
 

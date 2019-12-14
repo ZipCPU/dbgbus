@@ -25,7 +25,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2017, Gisselquist Technology, LLC
+// Copyright (C) 2015-2019, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -66,7 +66,9 @@
 //
 //
 module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
-	parameter	[23:0]	CLOCKS_PER_BAUD = 24'd868;
+	parameter	[4:0]	TIMING_BITS = 5'd24;
+	localparam		TB = TIMING_BITS;
+	parameter	[(TB-1):0]	CLOCKS_PER_BAUD = 24'd868;
 	input	wire		i_clk;
 	input	wire		i_wr;
 	input	wire	[7:0]	i_data;
@@ -77,11 +79,14 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 	// for transmission.
 	output	wire		o_busy;
 
-	reg	[23:0]	baud_counter;
+	reg	[(TB-1):0]	baud_counter;
 	reg	[3:0]	state;
 	reg	[7:0]	lcl_data;
 	reg		r_busy, zero_baud_counter;
 
+	// Big state machine controlling: r_busy, state
+	// {{{
+	//
 	initial	r_busy = 1'b1;
 	initial	state  = `TXUL_IDLE;
 	always @(posedge i_clk)
@@ -89,8 +94,9 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 		if (!zero_baud_counter)
 			// r_busy needs to be set coming into here
 			r_busy <= 1'b1;
-		else if (state == `TXUL_IDLE)	// STATE_IDLE
+		else if (state > `TXUL_STOP)	// STATE_IDLE
 		begin
+			state <= `TXUL_IDLE;
 			r_busy <= 1'b0;
 			if ((i_wr)&&(!r_busy))
 			begin	// Immediately start us off with a start bit
@@ -101,22 +107,26 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 			// One clock tick in each of these states ...
 			r_busy <= 1'b1;
 			if (state <=`TXUL_STOP) // start bit, 8-d bits, stop-b
-				state <= state + 1;
+				state <= state + 1'b1;
 			else
 				state <= `TXUL_IDLE;
-		end 
+		end
 	end
+	// }}}
 
 	// o_busy
+	// {{{
 	//
 	// This is a wire, designed to be true is we are ever busy above.
 	// originally, this was going to be true if we were ever not in the
 	// idle state.  The logic has since become more complex, hence we have
 	// a register dedicated to this and just copy out that registers value.
 	assign	o_busy = (r_busy);
+	// }}}
 
 
 	// lcl_data
+	// {{{
 	//
 	// This is our working copy of the i_data register which we use
 	// when transmitting.  It is only of interest during transmit, and is
@@ -131,8 +141,10 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 			lcl_data <= i_data;
 		else if (zero_baud_counter)
 			lcl_data <= { 1'b1, lcl_data[7:1] };
+	// }}}
 
 	// o_uart_tx
+	// {{{
 	//
 	// This is the final result/output desired of this core.  It's all
 	// centered about o_uart_tx.  This is what finally needs to follow
@@ -144,8 +156,10 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 			o_uart_tx <= 1'b0;	// Set the start bit on writes
 		else if (zero_baud_counter)	// Set the data bit.
 			o_uart_tx <= lcl_data[0];
+	// }}}
 
-
+	// Baud counter
+	// {{{
 	// All of the above logic is driven by the baud counter.  Bits must last
 	// CLOCKS_PER_BAUD in length, and this baud counter is what we use to
 	// make certain of that.
@@ -186,24 +200,38 @@ module txuartlite(i_clk, i_wr, i_data, o_uart_tx, o_busy);
 	// The logic is a bit twisted here, in that it will only check for the
 	// above condition when zero_baud_counter is false--so as to make
 	// certain the STOP bit is complete.
-	initial	zero_baud_counter = 1'b0;
-	initial	baud_counter = 24'h05;
+	initial	zero_baud_counter = 1'b1;
+	initial	baud_counter = 0;
 	always @(posedge i_clk)
 	begin
-		zero_baud_counter <= (baud_counter == 24'h01);
+		zero_baud_counter <= (baud_counter == 1);
 		if (state == `TXUL_IDLE)
 		begin
-			baud_counter <= 24'h0;
+			baud_counter <= 0;
 			zero_baud_counter <= 1'b1;
 			if ((i_wr)&&(!r_busy))
 			begin
-				baud_counter <= CLOCKS_PER_BAUD - 24'h01;
+				baud_counter <= CLOCKS_PER_BAUD - 1'b1;
 				zero_baud_counter <= 1'b0;
 			end
+		end else if ((zero_baud_counter)&&(state == 4'h9))
+		begin
+			baud_counter <= 0;
+			zero_baud_counter <= 1'b1;
 		end else if (!zero_baud_counter)
-			baud_counter <= baud_counter - 24'h01;
+			baud_counter <= baud_counter - 1'b1;
 		else
-			baud_counter <= CLOCKS_PER_BAUD - 24'h01;
+			baud_counter <= CLOCKS_PER_BAUD - 1'b1;
 	end
+	// }}}
+//
+//
+// FORMAL METHODS
+//
+//
+//
+`ifdef	FORMAL
+// The formal properties for this file are maintained elsewhere
+`endif
 endmodule
 

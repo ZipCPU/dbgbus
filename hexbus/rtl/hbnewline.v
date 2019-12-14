@@ -12,7 +12,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2017, Gisselquist Technology, LLC
+// Copyright (C) 2017-2019, Gisselquist Technology, LLC
 //
 // This file is part of the hexbus debugging interface.
 //
@@ -38,17 +38,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
+`default_nettype	none
+//
 module	hbnewline(i_clk, i_reset,
 		i_stb, i_byte, o_nl_busy,
 		o_nl_stb, o_nl_byte, i_busy);
 	input	wire	i_clk, i_reset;
 	//
 	input	wire		i_stb;
-	input	wire	[7:0]	i_byte;
+	input	wire	[6:0]	i_byte;
 	output	wire		o_nl_busy;
 	//
 	output	reg		o_nl_stb;
-	output	reg	[7:0]	o_nl_byte;
+	output	reg	[6:0]	o_nl_byte;
 	input	wire		i_busy;
 
 	// LAST_CR will be true any time we have sent a carriage return, but
@@ -74,41 +76,143 @@ module	hbnewline(i_clk, i_reset,
 
 	initial	last_cr  = 1'b1;
 	initial	cr_state = 1'b0;
+	initial o_nl_stb = 1'b0;
+	initial	loaded   = 1'b0;
+	initial o_nl_byte = 7'h7f;
 	always @(posedge i_clk)
 		if (i_reset)
 		begin
 			cr_state <= 1'b0;
-			last_cr  <= 1'b0;
+			last_cr  <= 1'b1;
 			o_nl_stb <= 1'b0;
+			loaded   <= 1'b0;
+			o_nl_byte<= 7'h7f;
 		end else if ((i_stb)&&(!o_nl_busy))
 		begin
 			o_nl_stb  <= i_stb;
 			o_nl_byte <= i_byte;
-			cr_state <= 1'b0;
-			last_cr <= (i_byte[7:0] == 8'hd);
-			loaded  <= 1'b1;
+			cr_state  <= (i_byte[6:0]==7'hd);
+			last_cr   <= (i_byte[6:0] == 7'hd);
+			loaded    <= 1'b1;
 		end else if (!i_busy)
 		begin
 			if (!last_cr)
 			begin
-				cr_state  <= (!i_stb);
-				o_nl_byte <= 8'hd;
+				// A command just ended, send an
+				// (interruptable) CR
+				cr_state  <= 1'b1;
+				o_nl_byte <= 7'hd;
 				last_cr   <= (!i_stb);
 				o_nl_stb  <= (!i_stb);
 				loaded    <= 1'b0;
 			end else if (cr_state)
 			begin
 				cr_state  <= 1'b0;
-				o_nl_byte <= 8'ha;
+				o_nl_byte <= 7'ha;
 				o_nl_stb  <= 1'b1;
-				loaded  <= 1'b1;
+				loaded    <= 1'b1;
 			end else
 			begin
+				loaded    <= 1'b0;
 				o_nl_stb  <= 1'b0;
-				o_nl_byte <= 8'hff;
+				o_nl_byte <= 7'h7f;
 			end
 		end
 
-	assign	o_nl_busy = (o_nl_stb)&&(loaded);
+	// assign	o_nl_busy = (o_nl_stb)&&(loaded);
+	assign	o_nl_busy = ((i_busy)&&(o_nl_stb)&&(loaded))
+				||((cr_state)&&(!i_busy));
+`ifdef	FORMAL
+`ifdef	HBNEWLINE
+`define	ASSUME	assume
+`define	ASSERT	assert
+`else
+`define	ASSUME	assert
+`define	ASSERT	assert
+`endif
 
+	reg	f_past_valid;
+	initial	f_past_valid = 1'b0;
+	always @(posedge i_clk)
+		f_past_valid <= 1'b1;
+
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_stb))&&($past(o_nl_busy)))
+		`ASSUME(($stable(i_stb))&&($stable(i_byte)));
+
+	always @(*)
+		`ASSUME(i_byte != 7'ha);
+	always @(*)
+		`ASSUME(i_byte != 7'h7f);
+
+	///////////////////////////
+	//
+	// Stability
+	//
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_nl_stb))
+				&&($past(i_busy)))
+	begin
+		if ($past(o_nl_byte) != 7'hd)
+			`ASSERT(($stable(o_nl_stb))&&($stable(o_nl_byte)));
+		else
+			`ASSERT((o_nl_byte == 7'hd)
+					||(o_nl_byte == $past(i_byte)));
+	end
+
+	// Forward any incoming bytes immediately to the output
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))
+			&&($past(i_stb))&&(!$past(o_nl_busy)))
+		`ASSERT((o_nl_stb)&&(o_nl_byte == $past(i_byte)));
+
+	// Following a carriage return, always a new-line
+	always @(posedge i_clk)
+	if ((f_past_valid)&&(!$past(i_reset))&&($past(o_nl_stb))
+			&&(!$past(i_busy))&&($past(o_nl_byte)==7'hd))
+		`ASSERT((o_nl_stb)&&(o_nl_byte == 7'ha));
+
+	// Following a newline, either a new character or nothing
+	always @(posedge i_clk)
+	if ((f_past_valid)&&($past(o_nl_stb))&&(!$past(i_busy))
+				&&($past(o_nl_byte)==7'ha))
+		`ASSERT((!o_nl_stb)||(o_nl_byte != 7'ha));
+
+	always @(*)
+	if (!o_nl_stb)
+		`ASSERT(o_nl_byte == 7'h7f);
+
+
+	// Consistency checks
+	always @(*)
+	if ((o_nl_stb)&&(o_nl_byte == 7'hd))
+		`ASSERT((last_cr)&&(cr_state));
+	always @(*)
+	if ((last_cr)&&(o_nl_stb))
+		`ASSERT((o_nl_byte==7'hd)||(o_nl_byte==7'ha));
+
+	always @(*)
+	if(!i_stb)
+		`ASSERT((o_nl_byte == 7'hd)== ((last_cr)&&(cr_state)));
+
+	always @(*)
+		`ASSERT((o_nl_byte==7'ha)==
+			((o_nl_stb)&&(last_cr)&&(!cr_state)&&(loaded)));
+
+	always @(*)
+	if ((o_nl_byte != 7'h7f)&&(o_nl_byte != 7'hd)&&(o_nl_byte != 7'ha))
+		`ASSERT((o_nl_stb)&&(loaded)&&(!last_cr)&&(!cr_state));
+
+	always @(*)
+	if (o_nl_byte == 7'h7f)
+		`ASSERT((!o_nl_stb)&&(!loaded)&&(last_cr)&&(!cr_state));
+
+	always @(*)
+	if ((o_nl_stb)&&(o_nl_byte == 7'ha))
+		`ASSERT((last_cr)&&(!cr_state));
+
+	always @(*)
+		`ASSERT(cr_state == (o_nl_byte == 7'hd));
+
+`endif
 endmodule
