@@ -1,0 +1,17 @@
+[tasks]
+prf
+
+[options]
+mode prove
+
+[engines]
+smtbmc
+
+[script]
+read -sv faxil_master.v
+read -sv hbexecaxi.v
+prep -top hbexecaxi
+
+[files]
+faxil_master.v
+../../rtl/hbexecaxi.v
