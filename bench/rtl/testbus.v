@@ -89,7 +89,7 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 		// The bus control output wires
 		wb_cyc, wb_stb, wb_we, wb_addr, wb_odata, wb_sel,
 		//	The return bus wires
-		  wb_ack, wb_stall, wb_err, wb_idata,
+		  wb_stall, wb_ack, wb_idata, wb_err,
 		// An interrupt line
 		bus_interrupt,
 		// The return transport wires

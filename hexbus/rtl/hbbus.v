@@ -44,10 +44,11 @@
 module	hbbus(i_clk,
 		i_rx_stb, i_rx_byte,
 		o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
-		  i_wb_ack, i_wb_stall, i_wb_err, i_wb_data,
+		  i_wb_stall, i_wb_ack, i_wb_data, i_wb_err,
 		i_interrupt,
 		o_tx_stb, o_tx_byte, i_tx_busy);
-	localparam	AW=30, DW=32;
+	parameter	AW=30;
+	localparam	DW=32;
 	input	wire		i_clk;
 	input	wire		i_rx_stb;
 	input	wire	[7:0]	i_rx_byte;
@@ -55,7 +56,7 @@ module	hbbus(i_clk,
 	output	wire	[(AW-1):0]	o_wb_addr;
 	output	wire	[(DW-1):0]	o_wb_data;
 	output	wire	[(DW/8-1):0]	o_wb_sel;
-	input	wire			i_wb_ack, i_wb_stall, i_wb_err;
+	input	wire			i_wb_stall, i_wb_ack, i_wb_err;
 	input	wire	[(DW-1):0]	i_wb_data;
 	input	wire			i_interrupt;
 	output	wire			o_tx_stb;
@@ -101,7 +102,7 @@ module	hbbus(i_clk,
 	//
 	// We'll use these bus command words to drive a wishbone bus
 	//
-	hbexec	wbexec(i_clk, w_reset, iw_stb, iw_word, wb_busy,
+	hbexec	#(AW) wbexec(i_clk, w_reset, iw_stb, iw_word, wb_busy,
 			ow_stb, ow_word,
 			o_wb_cyc, o_wb_stb, o_wb_we, o_wb_addr, o_wb_data,
 				o_wb_sel, i_wb_ack, i_wb_stall, i_wb_err,

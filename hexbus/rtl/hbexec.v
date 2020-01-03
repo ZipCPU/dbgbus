@@ -304,7 +304,8 @@ module	hbexec(i_clk, i_reset,
 		// Echo any new addresses back up the command chain
 		//
 		o_rsp_stb  <= newaddr;
-		o_rsp_word <= { `RSP_SUB_ADDR, o_wb_addr, 1'b0, !inc };
+		o_rsp_word <= { `RSP_SUB_ADDR,
+			{(30-ADDRESS_WIDTH){1'b0}}, o_wb_addr, 1'b0, !inc };
 	end
 
 	// verilator lint_off UNUSED
