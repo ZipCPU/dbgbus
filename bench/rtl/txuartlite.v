@@ -14,7 +14,7 @@
 //	high for one cycle, and your data will be off.  Wait until the 'o_busy'
 //	line is low before strobing the i_wr line again--this implementation
 //	has NO BUFFER, so strobing i_wr while the core is busy will just
-//	get ignored.  The output will be placed on the o_txuart output line. 
+//	get ignored.  The output will be placed on the o_txuart output line.
 //
 //	(I often set both data and strobe on the same clock, and then just leave
 //	them set until the busy line is low.  Then I move on to the next piece
@@ -25,7 +25,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //

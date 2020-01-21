@@ -15,7 +15,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -172,10 +172,10 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 	//
 	// An example block RAM device
 	//
-	memdev	#(14) blkram(i_clk,
+	memdev	#(14) blkram(i_clk, 1'b0,
 			wb_cyc, (wb_stb)&&(mem_sel), wb_we, wb_addr[11:0],
 				wb_odata, wb_sel,
-			mem_ack, mem_stall, mem_data);
+			mem_stall, mem_ack, mem_data);
 	//
 	//
 	// A wishbone scope
@@ -189,7 +189,8 @@ module	testbus(i_clk, i_reset, i_uart, o_uart
 				wb_idata[9:0] };
 	wbscope	thescope(i_clk, 1'b1, scope_trigger, debug_data,
 		i_clk, wb_cyc, (wb_stb)&&(scop_sel), wb_we, wb_addr[0],wb_odata,
-		scop_ack, scop_stall, scop_data,
+			wb_sel,
+		scop_stall, scop_ack, scop_data,
 		scop_int);
 
 	//

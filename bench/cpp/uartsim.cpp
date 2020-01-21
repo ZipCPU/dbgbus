@@ -11,7 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -110,7 +110,7 @@ void	UARTSIM::kill(void) {
 
 	// Quickly double check that we aren't about to close stdin/stdout
 	if (m_conrd == STDIN_FILENO)
-		m_conwr = -1;
+		m_conrd = -1;
 	if (m_conwr == STDOUT_FILENO)
 		m_conwr = -1;
 	// Close any active connection

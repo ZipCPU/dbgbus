@@ -32,7 +32,7 @@
 //			beginning of the buffer
 //
 //	Although the data width DW is parameterized, it is not very changable,
-//	since the width is tied to the width of the data bus, as is the 
+//	since the width is tied to the width of the data bus, as is the
 //	control word.  Therefore changing the data width would require changing
 //	the interface.  It's doable, but it would be a change to the interface.
 //
@@ -59,7 +59,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Copyright (C) 2015-2019, Gisselquist Technology, LLC
+// Copyright (C) 2015-2020, Gisselquist Technology, LLC
 //
 // This file is part of the debugging interface demonstration.
 //
@@ -88,8 +88,8 @@
 `default_nettype	none
 //
 module wbscope(i_data_clk, i_ce, i_trigger, i_data,
-	i_wb_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data,
-	o_wb_ack, o_wb_stall, o_wb_data,
+	i_wb_clk, i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
+	o_wb_stall, o_wb_ack, o_wb_data,
 	o_interrupt);
 	parameter [4:0]			LGMEM = 5'd10;
 	parameter			BUSW = 32;
@@ -100,15 +100,14 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	input	wire			i_data_clk, i_ce, i_trigger;
 	input	wire	[(BUSW-1):0]	i_data;
 	// The WISHBONE bus for reading and configuring this scope
-	// verilator lint_off UNUSED
 	input	wire			i_wb_clk, i_wb_cyc, i_wb_stb, i_wb_we;
 	input	wire			i_wb_addr; // One address line only
 	input	wire	[(BUSW-1):0]	i_wb_data;
-	// verilator lint_on UNUSED
-	output	wire			o_wb_ack, o_wb_stall;
+	input	wire	[(BUSW/8-1):0]	i_wb_sel;
+	output	wire			o_wb_stall, o_wb_ack;
 	output	wire	[(BUSW-1):0]	o_wb_data;
 	// And, finally, for a final flair --- offer to interrupt the CPU after
-	// our trigger has gone off.  This line is equivalent to the scope 
+	// our trigger has gone off.  This line is equivalent to the scope
 	// being stopped.  It is not maskable here.
 	output	wire			o_interrupt;
 
@@ -123,21 +122,42 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	///////////////////////////////////////////////////
 	//
 	//
+	wire	read_from_data;
+	wire	write_stb;
+	wire	write_to_control;
+	reg	read_address;
+	wire	[31:0]	i_bus_data;
+
+	assign	i_bus_data = i_wb_data;
+
 	assign	o_wb_stall = 1'b0;
 
-	wire	read_from_data;
 	assign	read_from_data = (i_wb_stb)&&(!i_wb_we)&&(i_wb_addr);
 
-	wire	write_stb;
 	assign	write_stb = (i_wb_stb)&&(i_wb_we);
 
-	wire	write_to_control;
 	assign	write_to_control = (write_stb)&&(!i_wb_addr);
 
-	reg	read_address;
 	always @(posedge bus_clock)
 		read_address <= i_wb_addr;
 
+
+
+	///////////////////////////////////////////////////
+	//
+	// The actual SCOPE
+	//
+	///////////////////////////////////////////////////
+	//
+	// Now that we've finished reading/writing from the
+	// bus, ... or at least acknowledging reads and
+	// writes from and to the bus--even if they haven't
+	// happened yet, now we implement our actual scope.
+	// This includes implementing the actual reads/writes
+	// from/to the bus.
+	//
+	// From here on down, is the heart of the scope itself.
+	//
 	reg	[(LGMEM-1):0]	raddr;
 	reg	[(BUSW-1):0]	mem[0:((1<<LGMEM)-1)];
 
@@ -149,14 +169,25 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	initial	br_config = 3'b0;
 	initial	br_holdoff = DEFAULT_HOLDOFF;
 	always @(posedge bus_clock)
-		if (write_to_control)
-		begin
-			br_config <= { i_wb_data[31],
-				i_wb_data[27],
-				i_wb_data[26] };
-			br_holdoff <= i_wb_data[(HOLDOFFBITS-1):0];
-		end else if (bw_reset_complete)
+	if (write_to_control)
+	begin
+		br_config[1:0] <= {
+			i_bus_data[27],
+			i_bus_data[26] };
+		if (!i_bus_data[31])
+			br_holdoff <= i_bus_data[(HOLDOFFBITS-1):0];
+
+		//
+		// Reset logic
+		if (bw_reset_complete)
+			// Clear the reset request, regardless of the write
 			br_config[2] <= 1'b1;
+		else if (!br_config[2])
+			br_config[2] <= 1'b0;
+		else
+			br_config[2] <= i_bus_data[31];
+	end else if (bw_reset_complete)
+		br_config[2] <= 1'b1;
 	assign	bw_reset_request   = (!br_config[2]);
 	assign	bw_manual_trigger  = (br_config[1]);
 	assign	bw_disable_trigger = (br_config[0]);
@@ -171,12 +202,11 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 		assign	bw_reset_complete = bw_reset_request;
 	end else begin
 		reg		r_reset_complete;
-		(* ASYNC_REG = "TRUE" *) reg	[2:0]	q_iflags;
-		reg	[2:0]	r_iflags;
+		(* ASYNC_REG = "TRUE" *) reg	[2:0]	q_iflags, r_iflags;
 
 		// Resets are synchronous to the bus clock, not the data clock
 		// so do a clock transfer here
-		initial	q_iflags = 3'b000;
+		initial	{ q_iflags, r_iflags } = 6'h0;
 		initial	r_reset_complete = 1'b0;
 		always @(posedge i_data_clk)
 		begin
@@ -189,8 +219,8 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 		assign	dw_manual_trigger = r_iflags[1];
 		assign	dw_disable_trigger = r_iflags[0];
 
-		(* ASYNC_REG = "TRUE" *) reg	q_reset_complete;
-		reg	qq_reset_complete;
+		(* ASYNC_REG = "TRUE" *) reg	q_reset_complete,
+						qq_reset_complete;
 		// Pass an acknowledgement back from the data clock to the bus
 		// clock that the reset has been accomplished
 		initial	q_reset_complete = 1'b0;
@@ -217,10 +247,10 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 				||(dw_manual_trigger));
 	initial	dr_triggered = 1'b0;
 	always @(posedge i_data_clk)
-		if (dw_reset)
-			dr_triggered <= 1'b0;
-		else if ((i_ce)&&(dw_trigger))
-			dr_triggered <= 1'b1;
+	if (dw_reset)
+		dr_triggered <= 1'b0;
+	else if ((i_ce)&&(dw_trigger))
+		dr_triggered <= 1'b1;
 
 	//
 	// Determine when memory is full and capture is complete
@@ -233,19 +263,18 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	initial	dr_stopped = 1'b0;
 	initial	counter = 0;
 	always @(posedge i_data_clk)
-		if (dw_reset)
-			counter <= 0;
-		else if ((i_ce)&&(dr_triggered)&&(!dr_stopped))
-		begin
-			counter <= counter + 1'b1;
-		end
+	if (dw_reset)
+		counter <= 0;
+	else if ((i_ce)&&(dr_triggered)&&(!dr_stopped))
+		counter <= counter + 1'b1;
+
 	always @(posedge i_data_clk)
-		if ((!dr_triggered)||(dw_reset))
-			dr_stopped <= 1'b0;
-		else if (HOLDOFFBITS > 1) // if (i_ce)
-			dr_stopped <= (counter >= br_holdoff);
-		else if (HOLDOFFBITS <= 1)
-			dr_stopped <= ((i_ce)&&(dw_trigger));
+	if ((!dr_triggered)||(dw_reset))
+		dr_stopped <= 1'b0;
+	else if (HOLDOFFBITS > 1) // if (i_ce)
+		dr_stopped <= (counter >= br_holdoff);
+	else if (HOLDOFFBITS <= 1)
+		dr_stopped <= ((i_ce)&&(dw_trigger));
 
 	//
 	//	Actually do our writes to memory.  Record, via 'primed' when
@@ -261,23 +290,17 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	initial	waddr = {(LGMEM){1'b0}};
 	initial	dr_primed = 1'b0;
 	always @(posedge i_data_clk)
-		if (dw_reset) // For simulation purposes, supply a valid value
-		begin
-			waddr <= 0; // upon reset.
-			dr_primed <= 1'b0;
-		end else if ((i_ce)&&(!dr_stopped))
-		begin
-			// mem[waddr] <= i_data;
-			waddr <= waddr + {{(LGMEM-1){1'b0}},1'b1};
-			if (!dr_primed)
-			begin
-				//if (br_holdoff[(HOLDOFFBITS-1):LGMEM]==0)
-				//	dr_primed <= (waddr >= br_holdoff[(LGMEM-1):0]);
-				// else
-				
-					dr_primed <= (&waddr);
-			end
-		end
+	if (dw_reset) // For simulation purposes, supply a valid value
+	begin
+		waddr <= 0; // upon reset.
+		dr_primed <= 1'b0;
+	end else if (i_ce && !dr_stopped)
+	begin
+		// mem[waddr] <= i_data;
+		waddr <= waddr + {{(LGMEM-1){1'b0}},1'b1};
+		if (!dr_primed)
+			dr_primed <= (&waddr);
+	end
 
 	// Delay the incoming data so that we can get our trigger
 	// logic to line up with the data.  The goal is to have a
@@ -295,22 +318,23 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 		// Delay by one means just register this once
 		reg	[(BUSW-1):0]	data_pipe;
 		always @(posedge i_data_clk)
-			if (i_ce)
-				data_pipe <= i_data;
+		if (i_ce)
+			data_pipe <= i_data;
+
 		assign	wr_piped_data = data_pipe;
 	end else begin
 		// Arbitrary delay ... use a longer pipe
 		reg	[(STOPDELAY*BUSW-1):0]	data_pipe;
 
 		always @(posedge i_data_clk)
-			if (i_ce)
-				data_pipe <= { data_pipe[((STOPDELAY-1)*BUSW-1):0], i_data };
+		if (i_ce)
+			data_pipe <= { data_pipe[((STOPDELAY-1)*BUSW-1):0], i_data };
 		assign	wr_piped_data = { data_pipe[(STOPDELAY*BUSW-1):((STOPDELAY-1)*BUSW)] };
 	end endgenerate
 
 	always @(posedge i_data_clk)
-		if ((i_ce)&&(!dr_stopped))
-			mem[waddr] <= wr_piped_data;
+	if ((i_ce)&&(!dr_stopped))
+		mem[waddr] <= wr_piped_data;
 
 	//
 	// Clock transfer of the status signals
@@ -368,10 +392,10 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 
 	reg	[(LGMEM-1):0]	this_addr;
 	always @(posedge bus_clock)
-		if (read_from_data)
-			this_addr <= raddr + waddr + 1'b1;
-		else
-			this_addr <= raddr + waddr;
+	if (read_from_data)
+		this_addr <= raddr + waddr + 1'b1;
+	else
+		this_addr <= raddr + waddr;
 
 	reg	[31:0]	nxt_mem;
 	always @(posedge bus_clock)
@@ -387,20 +411,20 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	wire	[4:0]	bw_lgmem;
 	assign		bw_lgmem = LGMEM;
 	always @(posedge bus_clock)
-		if (!read_address) // Control register read
-			o_bus_data <= { bw_reset_request,
-					bw_stopped,
-					bw_triggered,
-					bw_primed,
-					bw_manual_trigger,
-					bw_disable_trigger,
-					(raddr == {(LGMEM){1'b0}}),
-					bw_lgmem,
-					full_holdoff  };
-		else if (!bw_stopped) // read, prior to stopping
-			o_bus_data <= i_data;
-		else // if (i_wb_addr) // Read from FIFO memory
-			o_bus_data <= nxt_mem; // mem[raddr+waddr];
+	if (!read_address) // Control register read
+		o_bus_data <= { bw_reset_request,
+				bw_stopped,
+				bw_triggered,
+				bw_primed,
+				bw_manual_trigger,
+				bw_disable_trigger,
+				(raddr == {(LGMEM){1'b0}}),
+				bw_lgmem,
+				full_holdoff  };
+	else if (!bw_stopped) // read, prior to stopping
+		o_bus_data <= i_data;
+	else // if (i_wb_addr) // Read from FIFO memory
+		o_bus_data <= nxt_mem; // mem[raddr+waddr];
 
 	assign	o_wb_data = o_bus_data;
 
@@ -409,9 +433,15 @@ module wbscope(i_data_clk, i_ce, i_trigger, i_data,
 	assign	o_interrupt = (bw_stopped)&&(!bw_disable_trigger)
 					&&(!br_level_interrupt);
 	always @(posedge bus_clock)
-		if ((bw_reset_complete)||(bw_reset_request))
-			br_level_interrupt<= 1'b0;
-		else
-			br_level_interrupt<= (bw_stopped)&&(!bw_disable_trigger);
+	if ((bw_reset_complete)||(bw_reset_request))
+		br_level_interrupt<= 1'b0;
+	else
+		br_level_interrupt<= (bw_stopped)&&(!bw_disable_trigger);
 
+	// verilator lint_off UNUSED
+	// Make verilator happy
+	wire	unused;
+	assign unused = &{ 1'b0, i_bus_data[30:28], i_bus_data[25:0],
+			i_wb_sel };
+	// verilator lint_on UNUSED
 endmodule
