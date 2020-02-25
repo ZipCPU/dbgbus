@@ -1,17 +1,19 @@
 [tasks]
 prf
+cvr
 
 [options]
-mode prove
+prf: mode prove
+cvr: mode cover
 
 [engines]
 smtbmc
 
 [script]
-read -sv faxil_master.v
-read -sv hbexecaxi.v
+read -formal faxil_master.v
+read -formal -D HBEXECAXI hbexecaxi.v
 prep -top hbexecaxi
 
 [files]
-faxil_master.v
+../../../bench/formal/faxil_master.v
 ../../rtl/hbexecaxi.v

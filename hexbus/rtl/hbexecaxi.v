@@ -122,18 +122,26 @@ module	hbexecaxi(i_clk, i_reset,
 	//
 	// Decode our input commands
 	//
-	wire	i_cmd_addr, i_cmd_wr, i_cmd_rd, i_cmd_bus;
+	wire	i_cmd_addr, i_cmd_wr, i_cmd_rd;
 	assign	i_cmd_addr = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33:32] == `CMD_SUB_ADDR);
 	assign	i_cmd_rd   = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33:32] == `CMD_SUB_RD);
 	assign	i_cmd_wr   = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33:32] == `CMD_SUB_WR);
-	assign	i_cmd_bus  = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33]    == `CMD_SUB_BUS);
 
+	initial	M_AXI_AWVALID = 0;
+	initial	M_AXI_WVALID = 0;
+	initial	M_AXI_BREADY = 0;
+	//
+	initial	M_AXI_ARVALID = 0;
+	initial	M_AXI_RREADY = 0;
 	always @(posedge i_clk)
 	if (i_reset)
 	begin
 		M_AXI_AWVALID <= 0;
 		M_AXI_WVALID  <= 0;
+		M_AXI_BREADY <= 0;
+		//
 		M_AXI_ARVALID <= 0;
+		M_AXI_RREADY <= 0;
 	end else if (M_AXI_BREADY|M_AXI_RREADY)
 	begin
 		// We are waiting on a return
@@ -141,6 +149,14 @@ module	hbexecaxi(i_clk, i_reset,
 			M_AXI_BREADY <= 0;
 		if (M_AXI_RVALID)
 			M_AXI_RREADY <= 0;
+
+		if (M_AXI_AWREADY)
+			M_AXI_AWVALID <= 0;
+		if (M_AXI_WREADY)
+			M_AXI_WVALID <= 0;
+
+		if (M_AXI_ARREADY)
+			M_AXI_ARVALID <= 0;
 	end else begin
 		if (i_cmd_wr)
 		begin
@@ -152,10 +168,12 @@ module	hbexecaxi(i_clk, i_reset,
 		if (i_cmd_rd)
 		begin
 			M_AXI_ARVALID <= 1;
-			M_AXI_RREADY <= 1;
+			M_AXI_RREADY  <= 1;
 		end
 	end
 
+	initial	M_AXI_AWADDR = 0;
+	initial	newaddr = 0;
 	always @(posedge i_clk)
 	begin
 		newaddr <= 0;
@@ -163,7 +181,7 @@ module	hbexecaxi(i_clk, i_reset,
 		if (i_cmd_addr)
 		begin
 			if (!i_cmd_word[1])
-				M_AXI_AWADDR <= { i_cmd_addr[AW+1:2], 2'b00 };
+				M_AXI_AWADDR <= { i_cmd_word[AW+1:2], 2'b00 };
 			else
 				M_AXI_AWADDR <= { i_cmd_word[AW+1:2], 2'b00 }
 						+ M_AXI_AWADDR;
@@ -175,6 +193,9 @@ module	hbexecaxi(i_clk, i_reset,
 			M_AXI_AWADDR[AW+1:2]<= M_AXI_AWADDR[AW+1:2]+(inc ? 1:0);
 
 		M_AXI_AWADDR[1:0] <= 0;
+
+		if (i_reset)
+			newaddr <= 0;
 	end
 
 	always @(*)
@@ -191,7 +212,7 @@ module	hbexecaxi(i_clk, i_reset,
 		M_AXI_WDATA <= i_cmd_word[31:0];
 
 	always @(*)
-		M_AXI_WSTRB <= -1;
+		M_AXI_WSTRB = -1;
 
 	initial	o_rsp_stb = 1'b1;
 	initial	o_rsp_word = `RSP_RESET;
@@ -215,13 +236,13 @@ module	hbexecaxi(i_clk, i_reset,
 		o_rsp_word <= { `RSP_SUB_DATA, M_AXI_RDATA };
 	end else begin
 		o_rsp_stb  <= newaddr;
-		o_rsp_word <= { `RSP_SUB_ADDR, M_AXI_AWADDR, 1'b0, !inc };
+		o_rsp_word <= { `RSP_SUB_ADDR, M_AXI_AWADDR[AW+1:2], 1'b0, !inc };
 	end
 
 	// verilator lint_off UNUSED
 	// Make Verilator happy
 	wire	unused;
-	assign	unused = i_cmd_rd;
+	assign	unused = &{ 1'b0, i_cmd_rd, M_AXI_BRESP[0], M_AXI_RRESP[0] };
 	// verilator lint_on UNUSED
 `ifdef	FORMAL
 `ifdef	HBEXECAXI
@@ -239,23 +260,25 @@ module	hbexecaxi(i_clk, i_reset,
 	initial	`ASSUME(i_reset);
 
 	localparam	F_LGDEPTH=2;
-	wire	[F_LGDEPTH-1:0]	f_nreqs, f_nacks, f_outstanding;
+	wire	[F_LGDEPTH-1:0]	faxil_rd_outstanding, faxil_wr_outstanding, faxil_awr_outstanding;
 
-	faxil_master #( .C_AXI_ADDR_WIDTH(AW),.C_AXI_DATA_WIDTH(32),
-			.F_MAX_STALL(3),
-			.F_MAX_ACK_DELAY(3),
+	faxil_master #( .C_AXI_ADDR_WIDTH(AW+2),.C_AXI_DATA_WIDTH(32),
+			.F_OPT_ASSUME_RESET(1'b1),
+			.F_OPT_NO_RESET(1'b1),
+			// .F_MAX_STALL(3),
+			// .F_MAX_ACK_DELAY(3),
 			.F_LGDEPTH(F_LGDEPTH)
 		) faxil(i_clk, !i_reset,
 			M_AXI_AWREADY, M_AXI_AWADDR, 4'h0, M_AXI_AWPROT, M_AXI_AWVALID,
 			M_AXI_WREADY, M_AXI_WDATA, M_AXI_WSTRB, M_AXI_WVALID,
-			M_AXI_BRESP, M_AXI_BVALID, M_AXI_BREADY,,
+			M_AXI_BRESP, M_AXI_BVALID, M_AXI_BREADY,
 			M_AXI_ARREADY, M_AXI_ARADDR, 4'h0, M_AXI_ARPROT, M_AXI_ARVALID,
 			M_AXI_RRESP, M_AXI_RVALID, M_AXI_RDATA, M_AXI_RREADY,
 			faxil_rd_outstanding, faxil_wr_outstanding,
 			faxil_awr_outstanding);
 
 	always @(*)
-		assert(!M_AXI_BREADY || !M_AXI_RREADY)
+		assert(!M_AXI_BREADY || !M_AXI_RREADY);
 
 	always @(*)
 	if (!M_AXI_BREADY)
@@ -274,9 +297,8 @@ module	hbexecaxi(i_clk, i_reset,
 	begin
 		assert(faxil_rd_outstanding == 0);
 		assert(M_AXI_ARVALID == 0);
-	end else begin
-		assert(faxil_rdoutstanding == (M_AXI_ARVALID ? 0:1));
-	end
+	end else
+		assert(faxil_rd_outstanding == (M_AXI_ARVALID ? 0:1));
 
 	always @(posedge i_clk)
 	if ((!f_past_valid)||($past(i_reset)))
@@ -297,9 +319,9 @@ module	hbexecaxi(i_clk, i_reset,
 	end
 
 	always @(*)
-		assert(M_AXI_AWVALID[1:0] == 2'b00);
+		assert(M_AXI_AWADDR[1:0] == 2'b00);
 	always @(*)
-		assert(M_AXI_ARVALID[1:0] == 2'b00);
+		assert(M_AXI_ARADDR[1:0] == 2'b00);
 
 	always @(posedge i_clk)
 	if ((f_past_valid)&&(!$past(i_reset))&&($past(i_cmd_addr)))
@@ -325,7 +347,7 @@ module	hbexecaxi(i_clk, i_reset,
 	if (f_past_valid && (!$past(i_reset))&&($past(M_AXI_RVALID && !M_AXI_RRESP[1])))
 	begin
 		assert(o_rsp_stb);
-		assert(o_rsp_word == { `RSP_SUB_DATA, M_AXI_RDATA });
+		assert(o_rsp_word == { `RSP_SUB_DATA, $past(M_AXI_RDATA) });
 	end
 
 	always @(posedge i_clk)
@@ -338,7 +360,7 @@ module	hbexecaxi(i_clk, i_reset,
 	always @(posedge i_clk)
 	if (f_past_valid && (!$past(i_reset))
 		&&(($past(M_AXI_BVALID && M_AXI_BRESP[1]))
-			||($past(M_AXI_RVALID && M_AXI_RRESP[1])))
+			||($past(M_AXI_RVALID && M_AXI_RRESP[1]))))
 	begin
 		assert(o_rsp_stb);
 		assert(o_rsp_word == `RSP_BUS_ERROR);
