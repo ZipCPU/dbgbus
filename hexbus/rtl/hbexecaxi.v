@@ -399,5 +399,60 @@ module	hbexecaxi(i_clk, i_reset,
 			`ASSERT((o_wb_cyc)&&(o_wb_stb)&&(!o_wb_we));
 	end
 */
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Cover checks
+	//
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+	reg	[3:0]	cvr_reads, cvr_writes;
+
+	initial	cvr_writes = 0;
+	always @(posedge i_clk)
+	if (i_reset || (!M_AXI_AWVALID && !M_AXI_BVALID && !$changed(cvr_writes)))
+		cvr_writes <= 0;
+	else if (M_AXI_BVALID)
+		cvr_writes <= cvr_writes + 1;
+
+	always @(posedge i_clk)
+		cover(cvr_writes == 1 && faxil_awr_outstanding == 0
+			&& faxil_wr_outstanding == 0);
+
+	always @(posedge i_clk)
+		cover(cvr_writes == 4 && faxil_awr_outstanding == 0
+			&& faxil_wr_outstanding == 0);
+
+	initial	cvr_reads = 0;
+	always @(posedge i_clk)
+	if (i_reset || (!M_AXI_ARVALID && !M_AXI_RVALID && !$changed(cvr_reads)))
+		cvr_reads <= 0;
+	else if (M_AXI_RVALID)
+		cvr_reads <= cvr_reads + 1;
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 1 && M_AXI_RVALID);
+
+	always @(posedge i_clk)
+		cover(o_rsp_stb && $past(cvr_reads == 1));
+
+	always @(posedge i_clk)
+		cover(o_rsp_stb && $past(M_AXI_RVALID));
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 2);
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 2 && M_AXI_RVALID);
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 3 && M_AXI_RVALID);
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 1 && faxil_rd_outstanding == 0);
+
+	always @(posedge i_clk)
+		cover(cvr_reads == 4 && faxil_rd_outstanding == 0);
+
 `endif
 endmodule

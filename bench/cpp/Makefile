@@ -58,7 +58,7 @@ VOBJDR	:= $(RTLD)/obj_dir
 VERILATOR_ROOT ?= $(shell bash -c 'verilator -V|grep VERILATOR_ROOT | head -1 | sed -e " s/^.*=\s*//"')
 VROOT	:= $(VERILATOR_ROOT)
 VINCD   := $(VROOT)/include
-VINC	:= -I$(VINCD) -I$(VOBJDR) -I../../sw/host
+VINC	:= -I$(VINCD) -I$(VOBJDR) -I../../sw/host -I../../sw
 # We'll need to build these two Verilater files, and include them with our
 # build
 VSRCRAW := verilated.cpp verilated_vcd_c.cpp
