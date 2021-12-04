@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	uartsim.h
-//
+// {{{
 // Project:	wbuart32, a full featured UART with simulator
 //
 // Purpose:	To forward a Verilator simulated UART link over a TCP/IP pipe.
@@ -13,9 +13,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the debugging interface demonstration.
 //
 // The debugging interface demonstration is free software (firmware): you can
@@ -32,14 +32,14 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #ifndef	UARTSIM_H
 #define	UARTSIM_H
 
@@ -59,6 +59,8 @@
 #define	RXDATA	1
 
 class	UARTSIM	{
+	// Member declarations
+	// {{{
 	// The file descriptors:
 	//	m_skt   is the socket/port we are listening on
 	//	m_conrd is the file descriptor to read from
@@ -76,7 +78,10 @@ class	UARTSIM	{
 		m_rx_changectr, m_last_tx;
 	int	m_tx_baudcounter, m_tx_state, m_tx_busy;
 	unsigned	m_rx_data, m_tx_data;
+	// }}}
 
+	// Private methods
+	// {{{
 	// setup_listener is an attempt to encapsulate all of the network
 	// related setup stuff.
 	void	setup_listener(const int port);
@@ -97,23 +102,36 @@ class	UARTSIM	{
 	int	tick(const int i_tx) {
 		return rawtick(i_tx, (m_skt >= 0));
 	}
-
+	// }}}
 public:
-	//
+	// Public member functions
+	// {{{
+
+	// UARTSIM(port)
+	// {{{
 	// The UARTSIM constructor takes one argument: the port on the
 	// localhost to listen in on.  Once started, connections may be made
 	// to this port to get the output from the port.
 	UARTSIM(const int port);
+	// }}}
 
+	// kill(void)
+	// {{{
 	// kill() closes any active connection and the socket.  Once killed,
 	// no further output will be sent to the port.
 	void	kill(void);
+	// }}}
 
+	// setup(isetup)
+	// {{{
 	// setup() busts out the bits from isetup to the various internal
 	// parameters.  It is ideally only called between bits at appropriate
 	// transition intervals. 
 	void	setup(unsigned isetup);
+	// }}}
 
+	// operator()(i_tx)
+	// {{{
 	// The operator() function is called on every tick.  The input is the
 	// the output txuart transmit wire from the device.  The output is to
 	// be connected to the the rxuart receive wire into the device.  This
@@ -124,12 +142,17 @@ public:
 	//
 	int	operator()(int i_tx) {
 		return tick(i_tx); }
+	// }}}
 
+	// operator()(i_tx, isetup)
+	// {{{
 	// If there is a possibility that the core might change the UART setup,
 	// then it makes sense to include that current setup when calling the
 	// tick operator.
 	int	operator()(int i_tx, unsigned isetup) {
 		setup(isetup); return tick(i_tx); }
+	// }}}
+	// }}}
 };
 
 #endif

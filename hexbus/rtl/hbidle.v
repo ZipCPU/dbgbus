@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	hbidle.v
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	
@@ -10,9 +10,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the hexbus debugging interface.
 //
 // The hexbus interface is free software (firmware): you can redistribute it
@@ -29,34 +29,35 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
 //
-//
 ////////////////////////////////////////////////////////////////////////////////
-//
 //
 `default_nettype	none
 //
 `define	IDLE_SUB_WORD	5'b11011
 `define	IDLE_WORD	{ `IDLE_SUB_WORD, {(34-5){1'b0}} }
 //
-//
-module	hbidle(i_clk, i_reset, i_cmd_stb, i_cmd_word, o_idl_busy,
-			o_idl_stb, o_idl_word, i_busy);
-	input	wire		i_clk, i_reset;
-	//
-	input	wire		i_cmd_stb;
-	input	wire	[33:0]	i_cmd_word;
-	output	wire		o_idl_busy;
-	//
-	output	reg		o_idl_stb;
-	output	reg	[33:0]	o_idl_word;
-	input	wire		i_busy;
+// }}}
+module	hbidle (
+		// {{{
+		input	wire		i_clk, i_reset,
+		//
+		input	wire		i_cmd_stb,
+		input	wire	[33:0]	i_cmd_word,
+		output	wire		o_idl_busy,
+		//
+		output	reg		o_idl_stb,
+		output	reg	[33:0]	o_idl_word,
+		input	wire		i_busy
+		// }}}
+	);
 
-
-	//
+	// Local declarations
+	//  {{{
 	// If our bus has been idle for a long time, then set an idle_stb, so
 	// that we can send a message back just to say that we are alive.
 	//
@@ -66,33 +67,44 @@ module	hbidle(i_clk, i_reset, i_cmd_stb, i_cmd_word, o_idl_busy,
 `else
 	reg	[29:0]	idle_counter;
 `endif
+	// }}}
+
+	// idle_stb, idle_counter
+	// {{{
 	initial	idle_stb = 0;
 	initial	idle_counter = 0;
 	always @(posedge i_clk)
-		if ((i_reset)||(i_cmd_stb))
-		begin
-			idle_stb <= 1'b0;
-			idle_counter <= 0;
-		end else
-			{ idle_stb, idle_counter } <= idle_counter + 1'b1;
+	if ((i_reset)||(i_cmd_stb))
+	begin
+		idle_stb <= 1'b0;
+		idle_counter <= 0;
+	end else
+		{ idle_stb, idle_counter } <= idle_counter + 1'b1;
+	// }}}
 
+	// o_idl_stb
+	// {{{
 	initial	o_idl_stb = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			o_idl_stb <= 1'b0;
-		else if ((i_cmd_stb)&&(!o_idl_busy))
-			o_idl_stb <= 1'b1;
-		else if ((idle_stb)&&(!o_idl_stb))
-			o_idl_stb <= 1'b1;
-		else if (!i_busy)
-			o_idl_stb <= 1'b0;
+	if (i_reset)
+		o_idl_stb <= 1'b0;
+	else if ((i_cmd_stb)&&(!o_idl_busy))
+		o_idl_stb <= 1'b1;
+	else if ((idle_stb)&&(!o_idl_stb))
+		o_idl_stb <= 1'b1;
+	else if (!i_busy)
+		o_idl_stb <= 1'b0;
+	// }}}
 
+	// o_idl_word
+	// {{{
 	initial	o_idl_word = `IDLE_WORD;
 	always @(posedge i_clk)
-		if ((i_cmd_stb)&&(!o_idl_busy))
-			o_idl_word <= i_cmd_word;
-		else if (!i_busy)
-			o_idl_word <= `IDLE_WORD;
+	if ((i_cmd_stb)&&(!o_idl_busy))
+		o_idl_word <= i_cmd_word;
+	else if (!i_busy)
+		o_idl_word <= `IDLE_WORD;
+	// }}}
 
 	assign	o_idl_busy = (o_idl_stb)&&(i_busy);
 

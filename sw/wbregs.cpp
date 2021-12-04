@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	wbregs.cpp
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	To give a user access, via a command line program, to read
@@ -13,9 +13,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the debugging interface demonstration.
 //
 // The debugging interface demonstration is free software (firmware): you can
@@ -32,14 +32,14 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	hbpack
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	Given a set of incoming bits (4 at a time, with one out of band
@@ -30,9 +30,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the hexbus debugging interface.
 //
 // The hexbus interface is free software (firmware): you can redistribute it
@@ -49,65 +49,91 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	hbpack(i_clk, i_reset, i_stb, i_bits, o_pck_stb, o_pck_word);
-	input	wire	i_clk, i_reset;
-	// The incoming (partially decoded) byte stream
-	input	wire	i_stb;	// True if something is valid on input
-	input	wire	[4:0]	i_bits;	// Value on input
-	output	reg		o_pck_stb;
-	output	reg	[33:0]	o_pck_word;
+// }}}
+module	hbpack (
+		// {{{
+		input	wire	i_clk, i_reset,
+		// The incoming (partially decoded) byte stream
+		input	wire	i_stb,	// True if something is valid on input
+		input	wire	[4:0]	i_bits,	// Value on input
+		output	reg		o_pck_stb,
+		output	reg	[33:0]	o_pck_word
+		// }}}
+	);
 
+	// Local declarations
+	// {{{
 	reg		cmd_loaded;
 	reg	[33:0]	r_word;
+	// }}}
 
+	// cmd_loaded
+	// {{{
 	initial	cmd_loaded = 1'b0;
 	always @(posedge i_clk)
-		if (i_reset)
-			cmd_loaded <= 1'b0;
-		else if ((i_stb)&&(i_bits[4:2] == 3'b100))
-			cmd_loaded <= 1'b1;
-		else if ((i_stb)&&(i_bits[4]))
-			cmd_loaded <= 1'b0;
+	if (i_reset)
+		cmd_loaded <= 1'b0;
+	else if ((i_stb)&&(i_bits[4:2] == 3'b100))
+		cmd_loaded <= 1'b1;
+	else if ((i_stb)&&(i_bits[4]))
+		cmd_loaded <= 1'b0;
+	// }}}
 
+	// o_pck_stb
+	// {{{
 	initial	o_pck_stb = 1'b0;
 	always @(posedge i_clk)
 		o_pck_stb <= (!i_reset)&&((i_stb)&&(cmd_loaded)&&(i_bits[4]));
+	// }}}
 
+	// r_word
+	// {{{
 	initial	r_word = 0;
 	always @(posedge i_clk)
-		if (i_reset)
-			r_word <= 0;
-		else if (i_stb)
+	if (i_reset)
+		r_word <= 0;
+	else if (i_stb)
+	begin
+		if (i_bits[4])
 		begin
-			if (i_bits[4])
-			begin
-				// Record the command into our buffer
-				r_word[33:32] <= i_bits[1:0];
-				// Clear our buffer on any new command
-				r_word[31:0] <= 0;
-			end else
-				// Other wise, new hex digits just get
-				// placed in the bottom of our shift register,
-				// and everything quietly moves over by one
-				r_word[31:0] <= { r_word[27:0], i_bits[3:0] };
-		end
+			// Record the command into our buffer
+			r_word[33:32] <= i_bits[1:0];
+			// Clear our buffer on any new command
+			r_word[31:0] <= 0;
+		end else
+			// Other wise, new hex digits just get
+			// placed in the bottom of our shift register,
+			// and everything quietly moves over by one
+			r_word[31:0] <= { r_word[27:0], i_bits[3:0] };
+	end
+	// }}}
 
+	// o_pck_word
+	// {{{
 	initial	o_pck_word = 0;
 	always @(posedge i_clk)
-		if (i_reset)
-			o_pck_word <= 0;
-		else if (i_stb)
-			o_pck_word <= r_word;
+	if (i_reset)
+		o_pck_word <= 0;
+	else if (i_stb)
+		o_pck_word <= r_word;
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	HBPACK
 `define	ASSUME	assume
@@ -135,4 +161,5 @@ module	hbpack(i_clk, i_reset, i_stb, i_bits, o_pck_stb, o_pck_word);
 				&&($past(i_stb))&&($past(i_bits[4:2])==3'b100))
 		`ASSERT(cmd_loaded);
 `endif
+// }}}
 endmodule

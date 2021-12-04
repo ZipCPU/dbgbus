@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	hbexec.v
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	An example debug bus.  This bus takes commands from an incoming
@@ -25,9 +25,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the hexbus debugging interface.
 //
 // The hexbus interface is free software (firmware): you can redistribute it
@@ -44,10 +44,10 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -68,53 +68,59 @@
 `define	RSP_WRITE_ACKNOWLEDGEMENT { `RSP_SUB_ACK, 32'h0 }
 `define	RSP_RESET		{ `RSP_SUB_SPECIAL, 3'h0, 29'h00 }
 `define	RSP_BUS_ERROR		{ `RSP_SUB_SPECIAL, 3'h1, 29'h00 }
-
-module	hbexec(i_clk, i_reset,
+// }}}
+module	hbexec #(
+		// {{{
+		parameter	ADDRESS_WIDTH=30,
+		localparam	AW=ADDRESS_WIDTH, // Shorthand for address width
+				CW=34	// Command word width
+		// }}}
+	) (
+		// {{{
+		input	wire		i_clk, i_reset,
 		// The input command channel
-		i_cmd_stb, i_cmd_word, o_cmd_busy,
+		// {{{
+		input	wire			i_cmd_stb,
+		input	wire	[(CW-1):0]	i_cmd_word,
+		output	wire			o_cmd_busy,
+		// }}}
 		// The return command channel
-		o_rsp_stb, o_rsp_word,
-		// Our wishbone outputs
-		o_wb_cyc, o_wb_stb,
-			o_wb_we, o_wb_addr, o_wb_data, o_wb_sel,
-		// The return wishbone path
-		i_wb_ack, i_wb_stall, i_wb_err, i_wb_data);
-	parameter	ADDRESS_WIDTH=30;
-	localparam	AW=ADDRESS_WIDTH,	// Shorthand for address width
-			CW=34;	// Command word width
-	input	wire		i_clk, i_reset;
-	//
-	input	wire			i_cmd_stb;
-	input	wire	[(CW-1):0]	i_cmd_word;
-	output	wire			o_cmd_busy;
-	//
-	output	reg			o_rsp_stb;
-	output	reg	[(CW-1):0]	o_rsp_word;
-	// Wishbone outputs
-	output	reg			o_wb_cyc, o_wb_stb, o_wb_we;
-	output	reg	[(AW-1):0]	o_wb_addr;
-	output	reg	[31:0]		o_wb_data;
-	output	wire	[3:0]		o_wb_sel;
-	// Wishbone inputs
-	input	wire		i_wb_ack, i_wb_stall, i_wb_err;
-	input	wire	[31:0]	i_wb_data;
+		// {{{
+		output	reg			o_rsp_stb,
+		output	reg	[(CW-1):0]	o_rsp_word,
+		// }}}
+		// Wishbone outputs
+		// {{{
+		output	reg			o_wb_cyc, o_wb_stb, o_wb_we,
+		output	reg	[(AW-1):0]	o_wb_addr,
+		output	reg	[31:0]		o_wb_data,
+		output	wire	[3:0]		o_wb_sel,
+		// }}}
+		// Wishbone inputs
+		// {{{
+		input	wire		i_wb_stall, i_wb_ack, i_wb_err,
+		input	wire	[31:0]	i_wb_data
+		// }}}
+		// }}}
+	);
 
-	//
-	//
+	// Local declarations
+	// {{{
 	reg	newaddr, inc;
+	wire	i_cmd_addr, i_cmd_wr, i_cmd_rd, i_cmd_bus;
+	// }}}
 
 	//
 	// Decode our input commands
-	//
-	wire	i_cmd_addr, i_cmd_wr, i_cmd_rd, i_cmd_bus;
+	// {{{
 	assign	i_cmd_addr = (i_cmd_stb)&&(i_cmd_word[33:32] == `CMD_SUB_ADDR);
 	assign	i_cmd_rd   = (i_cmd_stb)&&(i_cmd_word[33:32] == `CMD_SUB_RD);
 	assign	i_cmd_wr   = (i_cmd_stb)&&(i_cmd_word[33:32] == `CMD_SUB_WR);
 	assign	i_cmd_bus  = (i_cmd_stb)&&(i_cmd_word[33]    == `CMD_SUB_BUS);
+	// }}}
 
-	//
-	// CYC and STB
-	//
+	// o_wb_cyc, o_wb_stb
+	// {{{
 	// These two linse control our state
 	initial	o_wb_cyc = 1'b0;
 	initial	o_wb_stb = 1'b0;
@@ -166,6 +172,7 @@ module	hbexec(i_clk, i_reset,
 			o_wb_stb <= 1'b1;
 		end
 	end
+	// }}}
 
 	// For now, we'll use the bus cycle line as an indication of whether
 	// or not we are too busy to accept anything else from the command
@@ -182,10 +189,11 @@ module	hbexec(i_clk, i_reset,
 	// implementation (atomic accesses may require it at a later date). 
 	// Hence, if CYC is low we can set the direction.
 	always @(posedge i_clk)
-		if (!o_wb_cyc)
-			o_wb_we <= (i_cmd_wr);
+	if (!o_wb_cyc)
+		o_wb_we <= (i_cmd_wr);
 
-	//
+	// o_wb_addr
+	// {{{
 	// The bus ADDRESS lines
 	//
 	initial	newaddr = 1'b0;
@@ -234,10 +242,14 @@ module	hbexec(i_clk, i_reset,
 		// returned via the command link.
 		newaddr <= ((!i_reset)&&(i_cmd_addr)&&(!o_cmd_busy));
 	end
+	// }}}
 
 	//
 	// The bus DATA (output) lines
 	//
+
+	// o_wb_data
+	// {{{
 	always @(posedge i_clk)
 	begin
 		// This may look a touch confusing ... what's important is that:
@@ -259,6 +271,7 @@ module	hbexec(i_clk, i_reset,
 		if ((!o_wb_stb)||(!i_wb_stall))
 			o_wb_data <= i_cmd_word[31:0];
 	end
+	// }}}
 
 	//
 	// For this command bus channel, we'll only ever direct word addressing.
@@ -268,6 +281,9 @@ module	hbexec(i_clk, i_reset,
 	//
 	// The COMMAND RESPONSE return channel
 	//
+
+	// o_rsp_stb, o_rsp_word
+	// {{{
 	// This is where we set o_rsp_stb and o_rsp_word for the return channel.
 	// The logic is set so that o_rsp_stb will be true for any one clock
 	// where we have data to reutrn, and zero otherwise.  If o_rsp_stb is
@@ -307,12 +323,15 @@ module	hbexec(i_clk, i_reset,
 		o_rsp_word <= { `RSP_SUB_ADDR,
 			{(30-ADDRESS_WIDTH){1'b0}}, o_wb_addr, 1'b0, !inc };
 	end
+	// }}}
 
-	// verilator lint_off UNUSED
 	// Make Verilator happy
+	// {{{
+	// verilator lint_off UNUSED
 	wire	unused;
-	assign	unused = i_cmd_rd;
+	assign	unused = &{ 1'b0, i_cmd_rd };
 	// verilator lint_on UNUSED
+	// }}}
 `ifdef	FORMAL
 `ifdef	HBEXEC
 `define	ASSUME	assume

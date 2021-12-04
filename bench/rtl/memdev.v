@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename:	memdev.v
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	This file is really simple: it creates an on-chip memory,
@@ -17,9 +17,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2015-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the debugging interface demonstration.
 //
 // The debugging interface demonstration is free software (firmware): you can
@@ -36,59 +36,74 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
 `default_nettype	none
-//
-module	memdev(i_clk, i_reset,
-		i_wb_cyc, i_wb_stb, i_wb_we, i_wb_addr, i_wb_data, i_wb_sel,
-		o_wb_stall, o_wb_ack, o_wb_data);
-	parameter	LGMEMSZ=15, DW=32, EXTRACLOCK= 0;
-	parameter	HEXFILE="";
-	parameter [0:0]	OPT_ROM = 1'b0;
-	localparam	AW = LGMEMSZ - 2;
-	input	wire			i_clk, i_reset;
-	input	wire			i_wb_cyc, i_wb_stb, i_wb_we;
-	input	wire	[(AW-1):0]	i_wb_addr;
-	input	wire	[(DW-1):0]	i_wb_data;
-	input	wire	[(DW/8-1):0]	i_wb_sel;
-	output	wire			o_wb_stall;
-	output	reg			o_wb_ack;
-	output	reg	[(DW-1):0]	o_wb_data;
+// }}}
+module	memdev #(
+		// {{{
+		parameter	LGMEMSZ=15, DW=32, EXTRACLOCK= 1,
+		parameter	HEXFILE="",
+		parameter [0:0]	OPT_ROM = 1'b0,
+		localparam	AW = LGMEMSZ - 2
+		// }}}
+	) (
+		// {{{
+		input	wire			i_clk, i_reset,
+		input	wire			i_wb_cyc, i_wb_stb, i_wb_we,
+		input	wire	[(AW-1):0]	i_wb_addr,
+		input	wire	[(DW-1):0]	i_wb_data,
+		input	wire	[(DW/8-1):0]	i_wb_sel,
+		output	wire			o_wb_stall,
+		output	reg			o_wb_ack,
+		output	reg	[(DW-1):0]	o_wb_data
+		// }}}
+	);
 
+	// Local declarations
+	// {{{
 	wire			w_wstb, w_stb;
 	wire	[(DW-1):0]	w_data;
 	wire	[(AW-1):0]	w_addr;
 	wire	[(DW/8-1):0]	w_sel;
 
 	reg	[(DW-1):0]	mem	[0:((1<<AW)-1)];
+	// }}}
 
+	// Pre-load the memory
+	// {{{
 	generate if (HEXFILE != 0)
 	begin : PRELOAD_MEMORY
 
 		initial	$readmemh(HEXFILE, mem);
 
 	end endgenerate
+	// }}}
 
+	// Delay request if necessary
+	// {{{
 	generate
 	if (EXTRACLOCK == 0)
 	begin
-
+		// {{{
 		assign	w_wstb = (i_wb_stb)&&(i_wb_we);
 		assign	w_stb  = i_wb_stb;
 		assign	w_addr = i_wb_addr;
 		assign	w_data = i_wb_data;
 		assign	w_sel  = i_wb_sel;
-
+		// }}}
 	end else begin
-
+		// {{{
 		reg		last_wstb, last_stb;
+		reg	[(AW-1):0]	last_addr;
+		reg	[(DW-1):0]	last_data;
+		reg	[(DW/8-1):0]	last_sel;
+
 		always @(posedge i_clk)
 			last_wstb <= (i_wb_stb)&&(i_wb_we);
 
@@ -99,9 +114,6 @@ module	memdev(i_clk, i_reset,
 		else
 			last_stb <= (i_wb_stb);
 
-		reg	[(AW-1):0]	last_addr;
-		reg	[(DW-1):0]	last_data;
-		reg	[(DW/8-1):0]	last_sel;
 		always @(posedge i_clk)
 			last_data <= i_wb_data;
 		always @(posedge i_clk)
@@ -114,11 +126,15 @@ module	memdev(i_clk, i_reset,
 		assign	w_addr = last_addr;
 		assign	w_data = last_data;
 		assign	w_sel  = last_sel;
+		// }}}
 	end endgenerate
+	// }}}
 
 	always @(posedge i_clk)
 		o_wb_data <= mem[w_addr];
 
+	// Write to memory
+	// {{{
 	generate if (!OPT_ROM)
 	begin : WRITE_TO_MEMORY
 
@@ -143,19 +159,38 @@ module	memdev(i_clk, i_reset,
 		// Verilator lint_on  UNUSED
 `endif
 	end endgenerate
+	// }}}
 
+	// o_wb_ack
+	// {{{
 	initial	o_wb_ack = 1'b0;
 	always @(posedge i_clk)
 	if (i_reset)
 		o_wb_ack <= 1'b0;
 	else
 		o_wb_ack <= (w_stb)&&(i_wb_cyc);
+	// }}}
 
 	assign	o_wb_stall = 1'b0;
 
-	// Now, let's keep verilator happy
+	// Make verilator happy
+	// {{{
 	// verilator lint_off UNUSED
 	wire	unused;
-	assign	unused = i_wb_cyc;
+	assign	unused = { 1'b0 };
 	// verilator lint_on UNUSED
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+`ifdef	FORMAL
+// Formal properties for this module are maintained elsewhere
+`endif
+// }}}
 endmodule

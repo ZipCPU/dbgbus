@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	autotest.cpp
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	
@@ -10,9 +10,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the hexbus debugging interface.
 //
 // The hexbus interface is free software (firmware): you can redistribute it
@@ -29,14 +29,14 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <assert.h>
 #include <signal.h>
@@ -56,6 +56,7 @@
 // Wrap the bus in a test bench
 //
 class	TESTBUS_TB : public TESTB<Vtestbus> {
+	// {{{
 public:
 	unsigned long	m_tx_busy_count;
 	UARTSIM		m_uart;
@@ -102,8 +103,10 @@ public:
 		}
 	}
 };
+// }}}
 
 void	getresponse(int fdin, int fdout, const char *cmd, char *response) {
+	// {{{
 	char	*rptr = response;
 	const char	*ptr, *sptr;
 	int	posn, nr;
@@ -157,8 +160,10 @@ void	getresponse(int fdin, int fdout, const char *cmd, char *response) {
 			break;
 	}
 }
+// }}}
 
 int	test1_read(int fdin, int fdout) {
+	// {{{
 	const char CHECKSTR[] = "A00002040R20170622\n";
 	char	response[512], *rptr;
 
@@ -177,8 +182,10 @@ int	test1_read(int fdin, int fdout) {
 	}
 	return 0;
 }
+// }}}
 
 int	test2_multiread(int fdin, int fdout) {
+	// {{{
 	// Pattern isn't stable enough to check
 	// const char CHECKSTR[] = "A0000204dR0000d0c9\nR00019197\nR000249fc\nR000302e7\n";
 	char	response[512];
@@ -187,8 +194,10 @@ int	test2_multiread(int fdin, int fdout) {
 		response);
 	return 0;
 }
+// }}}
 
 int	test3_interrupts(int fdin, int fdout) {
+	// {{{
 	const char CHECKSTR[] = "A00002051R00000000K00000000I\nK00000000\nK00000000I\nK00000000\n";
 	char	response[512], *rptr;
 
@@ -208,8 +217,10 @@ int	test3_interrupts(int fdin, int fdout) {
 
 	return 0;
 }
+// }}}
 
 int	test4_scope_trigger(int fdin, int fdout) {
+	// {{{
 	const char CHECKSTR[] = "A00002080R12a001fc\nA00004000\nK00000000\nA00002080IR72a001fc\nA00004000Rdeadbeef\n";
 	char	response[512], *rptr;
 
@@ -230,8 +241,10 @@ int	test4_scope_trigger(int fdin, int fdout) {
 
 	return 0;
 }
+// }}}
 
 int	test5_scope_data(int fdin, int fdout) {
+	// {{{
 	const char CHECKSTR[] = "A00002080R72a001fc\n"
 			"A00004000\nK00000000\n"
 			"A00002080R72a001fc\n"
@@ -260,8 +273,10 @@ int	test5_scope_data(int fdin, int fdout) {
 
 	return 0;
 }
+// }}}
 
 int	main(int argc, char **argv) {
+	// {{{
 	int	childs_stdin[2], childs_stdout[2];
 
 	if ((pipe(childs_stdin)!=0)||(pipe(childs_stdout) != 0)) {
@@ -335,3 +350,4 @@ int	main(int argc, char **argv) {
 			tb->tick();
 	}
 }
+// }}}

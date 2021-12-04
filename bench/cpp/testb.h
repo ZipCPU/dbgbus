@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	testb.h
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	A wrapper for a common interface to a clocked FPGA core
@@ -11,9 +11,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2015,2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the debugging interface demonstration.
 //
 // The debugging interface demonstration is free software (firmware): you can
@@ -30,14 +30,14 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #ifndef	TESTB_H
 #define	TESTB_H
 
@@ -66,25 +66,30 @@ public:
 	}
 
 	virtual	void	opentrace(const char *vcdname) {
+		// {{{
 		if (!m_trace) {
 			m_trace = new VerilatedVcdC;
 			m_core->trace(m_trace, 99);
 			m_trace->open(vcdname);
 		}
 	}
+	// }}}
 
 	virtual	void	closetrace(void) {
+		// {{{
 		if (m_trace) {
 			m_trace->close();
 			m_trace = NULL;
 		}
 	}
+	// }}}
 
 	virtual	void	eval(void) {
 		m_core->eval();
 	}
 
 	virtual	void	tick(void) {
+		// {{{
 		m_tickcount++;
 
 		// Make sure we have our evaluations straight before the top
@@ -104,13 +109,16 @@ public:
 			m_trace->flush();
 		}
 	}
+	// }}}
 
 	virtual	void	reset(void) {
+		// {{{
 		m_core->i_reset = 1;
 		tick();
 		m_core->i_reset = 0;
 		// printf("RESET\n");
 	}
+	// }}}
 };
 
 #endif

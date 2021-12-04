@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	hbnewlines.v
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	Add a newline to the response stream any time the receive bus
@@ -11,9 +11,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the hexbus debugging interface.
 //
 // The hexbus interface is free software (firmware): you can redistribute it
@@ -30,29 +30,32 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
 //
 `default_nettype	none
-//
-module	hbnewline(i_clk, i_reset,
-		i_stb, i_byte, o_nl_busy,
-		o_nl_stb, o_nl_byte, i_busy);
-	input	wire	i_clk, i_reset;
-	//
-	input	wire		i_stb;
-	input	wire	[6:0]	i_byte;
-	output	wire		o_nl_busy;
-	//
-	output	reg		o_nl_stb;
-	output	reg	[6:0]	o_nl_byte;
-	input	wire		i_busy;
+// }}}
+module	hbnewline (
+		// {{{
+		input	wire	i_clk, i_reset,
+		//
+		input	wire		i_stb,
+		input	wire	[6:0]	i_byte,
+		output	wire		o_nl_busy,
+		//
+		output	reg		o_nl_stb,
+		output	reg	[6:0]	o_nl_byte,
+		input	wire		i_busy
+		// }}}
+	);
 
+	// Local declarations
+	// {{{
 	// LAST_CR will be true any time we have sent a carriage return, but
 	// have not yet sent any valid words.  Hence, once the valid words
 	// stop, last_cr will go true and a carriage return will be sent.
@@ -73,55 +76,68 @@ module	hbnewline(i_clk, i_reset,
 	// down the interface, but before the bus has had a chance to become
 	// idle.
 	reg	loaded;
+	// }}}
 
+	// last_cr, cr_state, o_nl_stb, loaded, o_nl_byte
+	// {{{
 	initial	last_cr  = 1'b1;
 	initial	cr_state = 1'b0;
 	initial o_nl_stb = 1'b0;
 	initial	loaded   = 1'b0;
 	initial o_nl_byte = 7'h7f;
 	always @(posedge i_clk)
-		if (i_reset)
+	if (i_reset)
+	begin
+		cr_state <= 1'b0;
+		last_cr  <= 1'b1;
+		o_nl_stb <= 1'b0;
+		loaded   <= 1'b0;
+		o_nl_byte<= 7'h7f;
+	end else if ((i_stb)&&(!o_nl_busy))
+	begin
+		o_nl_stb  <= i_stb;
+		o_nl_byte <= i_byte;
+		cr_state  <= (i_byte[6:0]==7'hd);
+		last_cr   <= (i_byte[6:0] == 7'hd);
+		loaded    <= 1'b1;
+	end else if (!i_busy)
+	begin
+		if (!last_cr)
 		begin
-			cr_state <= 1'b0;
-			last_cr  <= 1'b1;
-			o_nl_stb <= 1'b0;
-			loaded   <= 1'b0;
-			o_nl_byte<= 7'h7f;
-		end else if ((i_stb)&&(!o_nl_busy))
+			// A command just ended, send an
+			// (interruptable) CR
+			cr_state  <= 1'b1;
+			o_nl_byte <= 7'hd;
+			last_cr   <= (!i_stb);
+			o_nl_stb  <= (!i_stb);
+			loaded    <= 1'b0;
+		end else if (cr_state)
 		begin
-			o_nl_stb  <= i_stb;
-			o_nl_byte <= i_byte;
-			cr_state  <= (i_byte[6:0]==7'hd);
-			last_cr   <= (i_byte[6:0] == 7'hd);
+			cr_state  <= 1'b0;
+			o_nl_byte <= 7'ha;
+			o_nl_stb  <= 1'b1;
 			loaded    <= 1'b1;
-		end else if (!i_busy)
+		end else
 		begin
-			if (!last_cr)
-			begin
-				// A command just ended, send an
-				// (interruptable) CR
-				cr_state  <= 1'b1;
-				o_nl_byte <= 7'hd;
-				last_cr   <= (!i_stb);
-				o_nl_stb  <= (!i_stb);
-				loaded    <= 1'b0;
-			end else if (cr_state)
-			begin
-				cr_state  <= 1'b0;
-				o_nl_byte <= 7'ha;
-				o_nl_stb  <= 1'b1;
-				loaded    <= 1'b1;
-			end else
-			begin
-				loaded    <= 1'b0;
-				o_nl_stb  <= 1'b0;
-				o_nl_byte <= 7'h7f;
-			end
+			loaded    <= 1'b0;
+			o_nl_stb  <= 1'b0;
+			o_nl_byte <= 7'h7f;
 		end
+	end
+	// }}}
 
 	// assign	o_nl_busy = (o_nl_stb)&&(loaded);
 	assign	o_nl_busy = ((i_busy)&&(o_nl_stb)&&(loaded))
 				||((cr_state)&&(!i_busy));
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	HBNEWLINE
 `define	ASSUME	assume
@@ -215,4 +231,5 @@ module	hbnewline(i_clk, i_reset,
 		`ASSERT(cr_state == (o_nl_byte == 7'hd));
 
 `endif
+// }}}
 endmodule

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	scopecls.cpp
-//
+// {{{
 // Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 //
 // Purpose:	After rebuilding the same code over and over again for every
@@ -13,9 +13,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2017-2020, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the debugging interface demonstration.
 //
 // The debugging interface demonstration is free software (firmware): you can
@@ -32,14 +32,14 @@
 // along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 // with no target there if the PDF file isn't present.)  If not, see
 // <http://www.gnu.org/licenses/> for a copy.
-//
+// }}}
 // License:	LGPL, v3, as defined and found on www.gnu.org,
+// {{{
 //		http://www.gnu.org/licenses/lgpl.html
-//
 //
 ////////////////////////////////////////////////////////////////////////////////
 //
-//
+// }}}
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -53,6 +53,8 @@
 #include "devbus.h"
 #include "scopecls.h"
 
+// SCOPE::ready()
+// {{{
 bool	SCOPE::ready() {
 	unsigned v;
 	v = m_fpga->readio(m_addr);
@@ -62,7 +64,10 @@ bool	SCOPE::ready() {
 	} v = (v>>28)&6;
 	return (v==6);
 }
+// }}}
 
+// SCOPE::decode_control()
+// {{{
 void	SCOPE::decode_control(void) {
 	unsigned	v;
 
@@ -79,7 +84,10 @@ void	SCOPE::decode_control(void) {
 	printf("\tHOLDOFF:\t%08x\n", (v&0x0fffff));
 	printf("\tTRIGLOC:\t%d\n", m_scoplen-(v&0x0fffff));
 }
+// }}}
 
+// int SCOPE::scoplen()
+// {{{
 int	SCOPE::scoplen(void) {
 	unsigned	v, lgln;
 
@@ -107,10 +115,10 @@ int	SCOPE::scoplen(void) {
 	// slow down to read that length from the device a second time.
 	} return m_scoplen;
 }
+// }}}
 
-//
-// rawread
-//
+// SCOPE::rawread
+// {{{
 // Read the scope data from the scope.
 void	SCOPE::rawread(void) {
 	// If we've already read the data from the scope, then we don't need
@@ -144,7 +152,10 @@ void	SCOPE::rawread(void) {
 			m_data[i] = m_fpga->readio(m_addr+4);
 	}
 }
+// }}}
 
+// SCOPE::print
+// {{{
 void	SCOPE::print(void) {
 	unsigned long addrv = 0, alen;
 	int	offset;
@@ -189,11 +200,17 @@ void	SCOPE::print(void) {
 		}
 	}
 }
+// }}}
 
+// SCOPE::write_trace_timescale
+// {{{
 void	SCOPE::write_trace_timescale(FILE *fp) {
 	fprintf(fp, "$timescale 1ns $end\n\n");
 }
+// }}}
 
+// SCOPE::write_trace_timezero
+// {{{
 void	SCOPE::write_trace_timezero(FILE *fp, int offset) {
 	double		dwhen;
 	long		when_ns;
@@ -202,8 +219,12 @@ void	SCOPE::write_trace_timezero(FILE *fp, int offset) {
 	when_ns = (unsigned long)(dwhen * 1e9);
 	fprintf(fp, "$timezero %ld $end\n\n", -when_ns);
 }
+// }}}
 
 // $dumpoff and $dumpon
+
+// SCOPE::write_trace_header
+// {{{
 void	SCOPE::write_trace_header(FILE *fp, int offset) {
 	time_t	now;
 
@@ -234,7 +255,7 @@ void	SCOPE::write_trace_header(FILE *fp, int offset) {
 		TRACEINFO *info = m_traces[i];
 		fprintf(fp, "  $var wire %2d %s %s",
 			info->m_nbits, info->m_key, info->m_name);
-		if ((info->m_nbits != 1)&&(NULL != strchr(info->m_name, '[')))
+		if ((info->m_nbits > 0)&&(NULL == strchr(info->m_name, '[')))
 			fprintf(fp, "[%d:0] $end\n", info->m_nbits-1);
 		else
 			fprintf(fp, " $end\n");
@@ -243,7 +264,10 @@ void	SCOPE::write_trace_header(FILE *fp, int offset) {
 	fprintf(fp, " $upscope $end\n");
 	fprintf(fp, "$enddefinitions $end\n");
 }
+// }}}
 
+// SCOPE::write_binary_trace
+// {{{
 void	SCOPE::write_binary_trace(FILE *fp, const int nbits, unsigned val,
 		const char *str) {
 	if (nbits <= 1) {
@@ -257,12 +281,18 @@ void	SCOPE::write_binary_trace(FILE *fp, const int nbits, unsigned val,
 		fprintf(fp, "%d", (val>>(nbits-1-i))&1);
 	fprintf(fp, " %s\n", str);
 }
+// }}}
 
+// SCOPE::write_binary
+// {{{
 void	SCOPE::write_binary_trace(FILE *fp, TRACEINFO *info, unsigned value) {
 	write_binary_trace(fp, info->m_nbits, (value>>info->m_nshift),
 		info->m_key);
 }
+// }}}
 
+// SCOPE::register_trace
+// {{{
 void	SCOPE::register_trace(const char *name,
 		unsigned nbits, unsigned shift) {
 	TRACEINFO	*info = new TRACEINFO;
@@ -284,10 +314,11 @@ void	SCOPE::register_trace(const char *name,
 
 	m_traces.push_back(info);
 }
+// }}}
 
 /*
- * getaddresslen(void)
- *
+ * SCOPE::getaddresslen(void)
+ * {{{
  * Returns the number of items in the scope's buffer.  For the uncompressed
  * scope, this is just the size of hte scope.  For the compressed scope ... this
  * is a touch longer.
@@ -310,14 +341,18 @@ unsigned	SCOPE::getaddresslen(void) {
 		return alen;
 	} return m_scoplen;
 }
+// }}}
 
 /*
- * define_traces
- *
+ * SCOPE::define_traces
+ * {{{
  * This is a user stub.  User programs should define this function.
  */
 void	SCOPE::define_traces(void) {}
+// }}}
 
+// SCOPE::writevcd (FILE *fp)
+// {{{
 void	SCOPE::writevcd(FILE *fp) {
 	unsigned	alen;
 	int	offset = 0;
@@ -343,6 +378,7 @@ void	SCOPE::writevcd(FILE *fp) {
 	// And split into two paths--one for compressed scopes (wbscopc), and
 	// the other for the more normal scopes (wbscope).
 	if(m_compressed) {
+		// {{{
 		// With compressed scopes, you need to track the address
 		// relative to the beginning.
 		unsigned long	addrv = 0;
@@ -402,10 +438,9 @@ void	SCOPE::writevcd(FILE *fp) {
 
 			addrv++;
 		}
-	} else {
-		//
-		// Uncompressed scope.
-		//
+		// }}}
+	} else { // Uncompressed scope.
+		// {{{
 		unsigned now_ns;
 		double	dnow;
 
@@ -454,12 +489,14 @@ void	SCOPE::writevcd(FILE *fp) {
 			// Now finally write the clock as zero.
 			fprintf(fp, "0\'C\n");
 		}
+		// }}}
 	}
 }
+// }}}
 
 /*
- * writevcd
- *
+ * SCOPE::writevcd
+ * {{{
  * Main user entry point for VCD file creation.  This just opens a file of the
  * given name, and writes the VCD info to it.  If the file cannot be opened,
  * an error is written to the standard error stream, and the routine returns.
@@ -477,4 +514,5 @@ void	SCOPE::writevcd(const char *trace_file_name) {
 
 	fclose(fp);
 }
+// }}}
 

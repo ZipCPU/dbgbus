@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename: 	bench/rtl/Makefile
-##
+## {{{
 ## Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 ##
 ## Purpose:	This Makefile guides the translation of the project RTL files
@@ -25,9 +25,9 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2017-2020, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2017-2021, Gisselquist Technology, LLC
+## {{{
 ## This file is part of the debugging interface demonstration.
 ##
 ## The debugging interface demonstration is free software (firmware): you can
@@ -45,14 +45,14 @@
 ## along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 ## with no target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	LGPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/lgpl.html
-##
 ##
 ################################################################################
 ##
-##
+## }}}
 # all, the first target, becomes the default target
 all:
 #
@@ -90,33 +90,43 @@ VFLAGS := -Wall --MMD -trace -y ../../$(BUS)/rtl --Mdir $(VDIRFB) -cc
 # targets.  The first just runs verilator.  The second actually builds our
 # library within the $(VDIRFB) directory
 .PHONY: all
-all: verilate library
+all: verilate library quikbus quiklib
 
+.DELETE_ON_ERROR:
 
 #
 # The "verilate" target doesn't produce any files.  Just insist instead
 # that the Vtestbus.h file exist
 .PHONY: verilate
 verilate: $(VDIRFB)/Vtestbus.h
+.PHONY: quikbus
+quikbus: $(VDIRFB)/Vquikbus.h
 
 #
 # Run Verilator on our RTL code
 $(VDIRFB)/Vtestbus.h:
 	$(VERILATOR) $(VFLAGS) testbus.v
+$(VDIRFB)/Vquikbus.h:
+	$(VERILATOR) $(VFLAGS) quikbus.v
 
-#
-# Build the library from the Verialtor outputs.
-# This just runs make in the $(VDIRFB) directory on the file Vtestbus.mk
-# (also in the $(VDIRFB) directory)
 .PHONY: library
+## {{{
+## Build the library from the Verialtor outputs.
+## This just runs make in the $(VDIRFB) directory on the file Vtestbus.mk
+## (also in the $(VDIRFB) directory)
 library: $(VDIRFB)/Vtestbus.h
 	$(SUBMAKE) $(VDIRFB)/ -f Vtestbus.mk
+## }}}
 
-#
-# Clean up any make by products, so we can start from scratch if we need to
+quiklib: $(VDIRFB)/Vquikbus.h
+	$(SUBMAKE) $(VDIRFB)/ -f Vquikbus.mk
+
 .PHONY: clean
+## {{{
+## Clean up any make by products, so we can start from scratch if we need to
 clean:
 	rm -rf $(VDIRFB)/
+## }}}
 
 #
 # Note and incorporate any dependency information, so that we'll know when/if
