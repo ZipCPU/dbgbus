@@ -1,5 +1,9 @@
+[tasks]
+prf
+
 [options]
 mode prove
+depth 4
 
 [engines]
 smtbmc

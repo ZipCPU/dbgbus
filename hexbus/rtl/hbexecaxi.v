@@ -52,6 +52,7 @@
 module	hbexecaxi #(
 		// {{{
 		parameter	ADDRESS_WIDTH=30,
+		parameter [0:0]	OPT_LOWPOWER=1'b0,
 		// Shorthand for address width
 		localparam	AW=ADDRESS_WIDTH,
 				CW=34,	// Command word width
@@ -129,12 +130,12 @@ module	hbexecaxi #(
 	assign	i_cmd_rd   = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33:32] == CMD_SUB_RD);
 	assign	i_cmd_wr   = (i_cmd_stb && !o_cmd_busy)&&(i_cmd_word[33:32] == CMD_SUB_WR);
 
+	// AWVALID, WVALID, BREADY
+	// {{{
 	initial	M_AXI_AWVALID = 0;
 	initial	M_AXI_WVALID = 0;
 	initial	M_AXI_BREADY = 0;
-	//
-	initial	M_AXI_ARVALID = 0;
-	initial	M_AXI_RREADY = 0;
+
 	always @(posedge i_clk)
 	if (i_reset)
 	begin
@@ -142,38 +143,50 @@ module	hbexecaxi #(
 		M_AXI_WVALID  <= 0;
 		M_AXI_BREADY <= 0;
 		//
-		M_AXI_ARVALID <= 0;
-		M_AXI_RREADY <= 0;
-	end else if (M_AXI_BREADY|M_AXI_RREADY)
+	end else if (M_AXI_BREADY)
 	begin
 		// We are waiting on a return
 		if (M_AXI_BVALID)
 			M_AXI_BREADY <= 0;
-		if (M_AXI_RVALID)
-			M_AXI_RREADY <= 0;
 
 		if (M_AXI_AWREADY)
 			M_AXI_AWVALID <= 0;
 		if (M_AXI_WREADY)
 			M_AXI_WVALID <= 0;
+	end else if (i_cmd_wr)
+	begin
+		M_AXI_AWVALID <= 1;
+		M_AXI_WVALID  <= 1;
+		M_AXI_BREADY  <= 1;
+	end
+	// }}}
 
+	// ARVALID, RREADY
+	// {{{
+	initial	M_AXI_ARVALID = 0;
+	initial	M_AXI_RREADY = 0;
+	always @(posedge i_clk)
+	if (i_reset)
+	begin
+		M_AXI_ARVALID <= 0;
+		M_AXI_RREADY <= 0;
+	end else if (M_AXI_RREADY)
+	begin
+		// We are waiting on a return
 		if (M_AXI_ARREADY)
 			M_AXI_ARVALID <= 0;
-	end else begin
-		if (i_cmd_wr)
-		begin
-			M_AXI_AWVALID <= 1;
-			M_AXI_WVALID  <= 1;
-			M_AXI_BREADY <= 1;
-		end
 
-		if (i_cmd_rd)
-		begin
-			M_AXI_ARVALID <= 1;
-			M_AXI_RREADY  <= 1;
-		end
+		if (M_AXI_RVALID)
+			M_AXI_RREADY <= 0;
+	end else if (i_cmd_rd)
+	begin
+		M_AXI_ARVALID <= 1;
+		M_AXI_RREADY  <= 1;
 	end
+	// }}}
 
+	// M_AXI_AWADDR, newaddr, inc
+	// {{{
 	initial	M_AXI_AWADDR = 0;
 	initial	newaddr = 1;
 	always @(posedge i_clk)
@@ -193,28 +206,39 @@ module	hbexecaxi #(
 					||(M_AXI_ARVALID && M_AXI_ARREADY))
 				M_AXI_AWADDR[AW+1:2]<= M_AXI_AWADDR[AW+1:2]+(inc ? 1:0);
 
-			M_AXI_AWADDR[1:0] <= 0;
-
 			if (i_cmd_rd || i_cmd_wr)
 				newaddr <= 0;
 		end
 
+		M_AXI_AWADDR[1:0] <= 0;
+
 		if (i_reset)
 			newaddr <= 1;
 	end
+	// }}}
 
 	assign	M_AXI_ARADDR = M_AXI_AWADDR;
 	assign	M_AXI_AWPROT = 0;
 	assign	M_AXI_ARPROT = 0;
 
-	assign	o_cmd_busy = M_AXI_BREADY | M_AXI_RREADY;
+	assign	o_cmd_busy = M_AXI_BREADY || M_AXI_RREADY;
 
+	// M_AXI_WDATA
+	// {{{
+	initial	M_AXI_WDATA = 0;
 	always @(posedge i_clk)
-	if (!M_AXI_BREADY)
+	if (OPT_LOWPOWER && i_reset)
+		M_AXI_WDATA <= 0;
+	else if ((!OPT_LOWPOWER && !M_AXI_BREADY) ||(OPT_LOWPOWER && i_cmd_wr))
 		M_AXI_WDATA <= i_cmd_word[31:0];
+	else if (OPT_LOWPOWER && M_AXI_WREADY)
+		M_AXI_WDATA <= 0;
+	// }}}
 
 	assign	M_AXI_WSTRB = -1;
 
+	// rsp_word
+	// {{{
 	always @(*)
 	begin
 		rsp_word = 0;
@@ -238,9 +262,14 @@ module	hbexecaxi #(
 		end
 
 		if (newaddr)
-			rsp_word = rsp_word | { RSP_SUB_ADDR, M_AXI_AWADDR[AW+1:2], 1'b0, !inc };
+			rsp_word = rsp_word | { RSP_SUB_ADDR,
+					{(32-AW-2){1'b0}},
+					M_AXI_AWADDR[AW+1:2], 1'b0, !inc };
 	end
+	// }}}
 
+	// o_rsp_stb, o_rsp_word
+	// {{{
 	initial	o_rsp_stb = 1'b1;
 	initial	o_rsp_word = RSP_RESET;
 	always @(posedge i_clk)
@@ -259,13 +288,29 @@ module	hbexecaxi #(
 			o_rsp_stb <= 1;
 
 		o_rsp_word <= rsp_word;
-	end
 
-	// verilator lint_off UNUSED
+		if (OPT_LOWPOWER && ((!M_AXI_BVALID && !M_AXI_RVALID)
+			&& (!newaddr || (!i_cmd_rd && !i_cmd_wr))))
+			o_rsp_word <= 0;
+	end
+	// }}}
+
 	// Make Verilator happy
+	// {{{
+	// verilator lint_off UNUSED
 	wire	unused;
 	assign	unused = &{ 1'b0, i_cmd_rd, M_AXI_BRESP[0], M_AXI_RRESP[0] };
 	// verilator lint_on UNUSED
+	// }}}
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// Formal properties
+// {{{
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 `ifdef	FORMAL
 `ifdef	HBEXECAXI
 `define	ASSUME	assume
@@ -300,22 +345,33 @@ module	hbexecaxi #(
 			faxil_awr_outstanding, faxil_wr_outstanding,
 			faxil_rd_outstanding;
 
-	faxil_master #( .C_AXI_ADDR_WIDTH(AW+2),.C_AXI_DATA_WIDTH(32),
-			.F_OPT_ASSUME_RESET(1'b1),
-			.F_OPT_NO_RESET(1'b1),
-			// .F_MAX_STALL(3),
-			// .F_MAX_ACK_DELAY(3),
-			.F_LGDEPTH(F_LGDEPTH)
-		) faxil(i_clk, !i_reset,
-			M_AXI_AWREADY, M_AXI_AWADDR, 4'h0, M_AXI_AWPROT,
-				M_AXI_AWVALID,
-			M_AXI_WREADY, M_AXI_WDATA, M_AXI_WSTRB, M_AXI_WVALID,
-			M_AXI_BRESP, M_AXI_BVALID, M_AXI_BREADY,
-			M_AXI_ARREADY, M_AXI_ARADDR, 4'h0, M_AXI_ARPROT,
-				M_AXI_ARVALID,
-			M_AXI_RRESP, M_AXI_RVALID, M_AXI_RDATA, M_AXI_RREADY,
-			faxil_rd_outstanding, faxil_wr_outstanding,
-			faxil_awr_outstanding);
+	faxil_master #(
+		.C_AXI_ADDR_WIDTH(AW+2),.C_AXI_DATA_WIDTH(32),
+		.F_OPT_ASSUME_RESET(1'b1),
+		.F_OPT_NO_RESET(1'b1),
+		// .F_MAX_STALL(3),
+		// .F_MAX_ACK_DELAY(3),
+		.F_LGDEPTH(F_LGDEPTH)
+	) faxil(
+		.i_clk(i_clk), .i_axi_reset_n(!i_reset),
+		.i_axi_awvalid(M_AXI_AWVALID), .i_axi_awready(M_AXI_AWREADY),
+			.i_axi_awaddr(M_AXI_AWADDR),
+			.i_axi_awprot(M_AXI_AWPROT),
+		.i_axi_wvalid(M_AXI_WVALID), .i_axi_wready(M_AXI_WREADY),
+			.i_axi_wdata(M_AXI_WDATA),
+			.i_axi_wstrb(M_AXI_WSTRB),
+		.i_axi_bvalid(M_AXI_BVALID), .i_axi_bready(M_AXI_BREADY),
+			.i_axi_bresp(M_AXI_BRESP),
+		.i_axi_arvalid(M_AXI_ARVALID), .i_axi_arready(M_AXI_ARREADY),
+			.i_axi_araddr(M_AXI_ARADDR),
+			.i_axi_arprot(M_AXI_ARPROT),
+		.i_axi_rvalid(M_AXI_RVALID), .i_axi_rready(M_AXI_RREADY),
+			.i_axi_rdata(M_AXI_RDATA),
+			.i_axi_rresp(M_AXI_RRESP),
+		.f_axi_rd_outstanding(faxil_rd_outstanding),
+			.f_axi_wr_outstanding(faxil_wr_outstanding),
+			.f_axi_awr_outstanding(faxil_awr_outstanding)
+	);
 
 	always @(*)
 		assert(!M_AXI_BREADY || !M_AXI_RREADY);
@@ -372,9 +428,12 @@ module	hbexecaxi #(
 		assert(o_cmd_busy == (M_AXI_BREADY || M_AXI_RREADY));
 
 	always @(posedge i_clk)
-	if ((f_past_valid)&& $past(o_cmd_busy) && $past(i_cmd_stb))
+	if (!f_past_valid || $past(i_reset))
 	begin
-		assume($stable(i_cmd_stb));
+		assume(!i_cmd_stb);
+	end else if ($past(i_cmd_stb && o_cmd_busy))
+	begin
+		assume(i_cmd_stb);
 		assume($stable(i_cmd_word));
 	end
 	// }}}
@@ -385,6 +444,27 @@ module	hbexecaxi #(
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
+
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Lowpower check
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
+	// We have only two values to check: WDATA and o_rsp_word
+	generate if (OPT_LOWPOWER)
+	begin
+		always @(*)
+		if (!M_AXI_WVALID)
+			assert(M_AXI_WDATA == 0);
+
+		always @(*)
+		if (!o_rsp_stb)
+			assert(o_rsp_word == 0);
+	end endgenerate
 
 	// }}}
 	////////////////////////////////////////////////////////////////////////
@@ -416,7 +496,7 @@ module	hbexecaxi #(
 	begin
 		`ASSERT(o_rsp_stb  == $past(newaddr));
 		if ($past(newaddr))
-			`ASSERT(o_rsp_word == { RSP_SUB_ADDR,
+			`ASSERT(o_rsp_word == { RSP_SUB_ADDR, {(30-AW){1'b0}},
 				$past(M_AXI_AWADDR[AW+1:1]), !$past(inc) });
 	end
 	// }}}
@@ -427,7 +507,6 @@ module	hbexecaxi #(
 	if (!i_reset && (M_AXI_BREADY || M_AXI_RREADY))
 		assert(!newaddr);
 	// }}}
-
 
 	// A reset return follows immediately following any reset
 	// {{{
@@ -482,7 +561,7 @@ module	hbexecaxi #(
 
 	initial	cvr_writes = 0;
 	always @(posedge i_clk)
-	if (i_reset || (!M_AXI_AWVALID && !M_AXI_BVALID && !$changed(cvr_writes)))
+	if (i_reset || M_AXI_RREADY)
 		cvr_writes <= 0;
 	else if (M_AXI_BVALID)
 		cvr_writes <= cvr_writes + 1;
@@ -497,7 +576,7 @@ module	hbexecaxi #(
 
 	initial	cvr_reads = 0;
 	always @(posedge i_clk)
-	if (i_reset || (!M_AXI_ARVALID && !M_AXI_RVALID && !$changed(cvr_reads)))
+	if (i_reset || M_AXI_BREADY)
 		cvr_reads <= 0;
 	else if (M_AXI_RVALID)
 		cvr_reads <= cvr_reads + 1;

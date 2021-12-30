@@ -50,6 +50,10 @@ describing:
    [[8]](http://zipcpu.com/blog/2017/06/21/looking-at-verilator.html)
    [[9]](http://zipcpu.com/blog/2017/06/28/dbgbus-goal.html)
 
+6. A description of the AXI-Lite bus master interface implementation
+   [[Ref]](http://zipcpu.com/blog/2021/12/30/dbgaxil.html)
+
+
 ## Making things legible
 
 If you are new to running a command link across a serial port, then you may

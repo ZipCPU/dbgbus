@@ -1,9 +1,11 @@
 [tasks]
 prf
+prflp prf opt_lowpower
 cvr
 
 [options]
 prf: mode prove
+prf: depth 3
 cvr: mode cover
 cvr: depth 30
 
@@ -13,6 +15,11 @@ smtbmc
 [script]
 read -formal faxil_master.v
 read -formal -D HBEXECAXI hbexecaxi.v
+--pycode-begin--
+cmd = "hierarchy -top hbexecaxi"
+cmd += " -chparam OPT_LOWPOWER %d" % (1 if "opt_lowpower" in tags else 0);
+output(cmd)
+--pycode-end--
 prep -top hbexecaxi
 
 [files]

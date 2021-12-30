@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Filename: 	faxil_master.v (Formal properties of an AXI lite master)
-//
+// {{{
 // Project:	WB2AXIPSP: bus bridges and other odds and ends
 //
 // Purpose:
@@ -10,9 +10,9 @@
 //		Gisselquist Technology, LLC
 //
 ////////////////////////////////////////////////////////////////////////////////
-//
-// Copyright (C) 2018-2019, Gisselquist Technology, LLC
-//
+// }}}
+// Copyright (C) 2018-2021, Gisselquist Technology, LLC
+// {{{
 // This file is part of the WB2AXIP project.
 //
 // The WB2AXIP project contains free software and gateware, licensed under the
@@ -32,8 +32,9 @@
 //
 //
 `default_nettype	none
-//
+// }}}
 module faxil_master #(
+	// {{{
 	parameter  C_AXI_DATA_WIDTH	= 32,// Fixed, width of the AXI R&W data
 	parameter  C_AXI_ADDR_WIDTH	= 28,// AXI Address width (log wordsize)
 	// F_OPT_XILINX, Certain Xilinx cores impose additional rules upon AXI
@@ -41,7 +42,6 @@ module faxil_master #(
 	// can be apart.  If F_OPT_XILINX is set, these rules will be applied
 	// here as well.  See in-line for more details.
 	parameter [0:0]	F_OPT_XILINX = 1'b0,
-	parameter [0:0]	F_OPT_HAS_CACHE = 1'b0,
 	// F_OPT_WRITE_ONLY, if set, will assume the master is always idle on
 	// te read channel, allowing you to test/focus on the write interface
 	parameter [0:0]	F_OPT_WRITE_ONLY  = 1'b0,
@@ -60,64 +60,86 @@ module faxil_master #(
 	// examined
 	parameter [0:0]			F_OPT_ASSUME_RESET = 1'b0,
 	parameter [0:0]			F_OPT_NO_RESET = F_OPT_ASSUME_RESET,
+	//
+	// F_OPT_ASYNC_RESET is for those designs that will reset the channels
+	// using an asynchronous reset.  In these cases, the stability
+	// properties only apply when the async reset is not asserted.
+	// Likewise, when F_OPT_ASYNC_RESET is set, the reset assertions are
+	// applied *on the same clock cycle*, in addition to one cycle later.
+	parameter [0:0]			F_OPT_ASYNC_RESET = 1'b0,
+	parameter 			F_OPT_COVER_BURST = 0,
 	// F_LGDEPTH is the number of bits necessary to count the maximum
 	// number of items in flight.
-	parameter				F_LGDEPTH	= 4,
+	parameter			F_LGDEPTH	= 4,
 	// F_AXI_MAXWAIT is the maximum number of clock cycles the
 	// master should have to wait for a slave to raise its ready flag to
 	// accept a request.  Set to zero for no limit.
-	parameter	[(F_LGDEPTH-1):0]	F_AXI_MAXWAIT  = 12,
+	parameter			F_AXI_MAXWAIT  = 12,
 	// F_AXI_MAXRSTALL is the maximum number of clock cycles the
 	// slave should have to wait with a return valid signal high, but
 	// while the master's return ready signal is low.  Set to zero for no
 	// limit.
-	parameter	[(F_LGDEPTH-1):0]	F_AXI_MAXRSTALL= 12,
+	parameter			F_AXI_MAXRSTALL= 12,
 	// F_AXI_MAXDELAY is the maximum number of clock cycles between request
 	// and response within the slave.  Set this to zero for no limit.
-	parameter	[(F_LGDEPTH-1):0]	F_AXI_MAXDELAY = 12,
+	parameter			F_AXI_MAXDELAY = 12,
+	//
+	parameter [0:0]			F_OPT_INITIAL = 1'b1,
 
 	//
 	localparam DW			= C_AXI_DATA_WIDTH,
 	localparam AW			= C_AXI_ADDR_WIDTH
+	// }}}
 	) (
-	input	wire			i_clk,	// System clock
-	input	wire			i_axi_reset_n,
+		// {{{
+		input	wire			i_clk,	// System clock
+		input	wire			i_axi_reset_n,
 
-// AXI write address channel signals
-	input	wire			i_axi_awready,//Slave is ready to accept
-	input	wire	[AW-1:0]	i_axi_awaddr,	// Write address
-	input	wire	[3:0]		i_axi_awcache,	// Write Cache type
-	input	wire	[2:0]		i_axi_awprot,	// Write Protection type
-	input	wire			i_axi_awvalid,	// Write address valid
+		// AXI write address channel signals
+		// {{{
+		input	wire			i_axi_awvalid,
+		input	wire			i_axi_awready,
+		input	wire	[AW-1:0]	i_axi_awaddr,	// Write address
+		input	wire	[2:0]		i_axi_awprot,	// Protection
+		// }}}
+		// AXI write data channel signals
+		// {{{
+		input	wire			i_axi_wvalid,
+		input	wire			i_axi_wready,
+		input	wire	[DW-1:0]	i_axi_wdata,	// Write data
+		input	wire	[DW/8-1:0]	i_axi_wstrb,	// Write strobes
+		// }}}
+		// AXI write response channel signals
+		// {{{
+		input	wire			i_axi_bvalid,
+		input	wire			i_axi_bready,
+		input	wire	[1:0]		i_axi_bresp,	// Wr response
+		// }}}
+		// AXI read address channel signals
+		// {{{
+		input	wire			i_axi_arvalid,
+		input	wire			i_axi_arready,
+		input	wire	[AW-1:0]	i_axi_araddr,	// Read address
+		input	wire	[2:0]		i_axi_arprot,	// Protection
+		// }}}
+		// AXI read data channel signals
+		// {{{
+		input	wire			i_axi_rvalid,
+		input	wire			i_axi_rready,
+		input	wire	[DW-1:0]	i_axi_rdata,	// Read data
+		input	wire	[1:0]		i_axi_rresp,	// Read response
+		// }}}
+		output	reg	[(F_LGDEPTH-1):0]	f_axi_rd_outstanding,
+		output	reg	[(F_LGDEPTH-1):0]	f_axi_wr_outstanding,
+		output	reg	[(F_LGDEPTH-1):0]	f_axi_awr_outstanding
+		// }}}
+	);
 
-// AXI write data channel signals
-	input	wire			i_axi_wready,  // Write data ready
-	input	wire	[DW-1:0]	i_axi_wdata,	// Write data
-	input	wire	[DW/8-1:0]	i_axi_wstrb,	// Write strobes
-	input	wire			i_axi_wvalid,	// Write valid
-
-// AXI write response channel signals
-	input	wire	[1:0]		i_axi_bresp,	// Write response
-	input	wire			i_axi_bvalid,  // Write reponse valid
-	input	wire			i_axi_bready,  // Response ready
-
-// AXI read address channel signals
-	input	wire			i_axi_arready,	// Read address ready
-	input	wire	[AW-1:0]	i_axi_araddr,	// Read address
-	input	wire	[3:0]		i_axi_arcache,	// Read Cache type
-	input	wire	[2:0]		i_axi_arprot,	// Read Protection type
-	input	wire			i_axi_arvalid,	// Read address valid
-
-// AXI read data channel signals
-	input	wire	[1:0]		i_axi_rresp,   // Read response
-	input	wire			i_axi_rvalid,  // Read reponse valid
-	input	wire	[DW-1:0]	i_axi_rdata,   // Read data
-	input	wire			i_axi_rready,  // Read Response ready
-	//
-	output	reg	[(F_LGDEPTH-1):0]	f_axi_rd_outstanding,
-	output	reg	[(F_LGDEPTH-1):0]	f_axi_wr_outstanding,
-	output	reg	[(F_LGDEPTH-1):0]	f_axi_awr_outstanding
-);
+	localparam	MAX_SLAVE_TIMEOUT = (F_AXI_MAXWAIT > F_AXI_MAXDELAY)
+				? (F_AXI_MAXWAIT) : F_AXI_MAXDELAY;
+	localparam	MAX_TIMEOUT = (F_AXI_MAXRSTALL>MAX_SLAVE_TIMEOUT)
+				? (F_AXI_MAXRSTALL) : MAX_SLAVE_TIMEOUT;
+	localparam	LGTIMEOUT = $clog2(MAX_TIMEOUT+1);
 
 //*****************************************************************************
 // Parameter declarations
@@ -128,17 +150,20 @@ module faxil_master #(
 //*****************************************************************************
 
 	// wire	w_fifo_full;
-	wire	axi_rd_ack, axi_wr_ack, axi_ard_req, axi_awr_req, axi_wr_req,
-		axi_rd_err, axi_wr_err;
+	wire	axi_rd_ack, axi_wr_ack, axi_ard_req, axi_awr_req, axi_wr_req;
+		// axi_rd_err, axi_wr_err;
+	reg		f_past_valid;
+	reg	[3:0]	f_reset_length;
+	// integer	k;
+
+	assign	axi_ard_req = (i_axi_arvalid)&&(i_axi_arready) && i_axi_reset_n;
+	assign	axi_awr_req = (i_axi_awvalid)&&(i_axi_awready) && i_axi_reset_n;
+	assign	axi_wr_req  = (i_axi_wvalid )&&(i_axi_wready) && i_axi_reset_n;
 	//
-	assign	axi_ard_req = (i_axi_arvalid)&&(i_axi_arready);
-	assign	axi_awr_req = (i_axi_awvalid)&&(i_axi_awready);
-	assign	axi_wr_req  = (i_axi_wvalid )&&(i_axi_wready);
-	//
-	assign	axi_rd_ack = (i_axi_rvalid)&&(i_axi_rready);
-	assign	axi_wr_ack = (i_axi_bvalid)&&(i_axi_bready);
-	assign	axi_rd_err = (axi_rd_ack)&&(i_axi_rresp[1]);
-	assign	axi_wr_err = (axi_wr_ack)&&(i_axi_bresp[1]);
+	assign	axi_rd_ack = (i_axi_rvalid)&&(i_axi_rready) && i_axi_reset_n;
+	assign	axi_wr_ack = (i_axi_bvalid)&&(i_axi_bready) && i_axi_reset_n;
+	// assign axi_rd_err = (axi_rd_ack)&&(i_axi_rresp[1]) && i_axi_reset_n;
+	// assign axi_wr_err = (axi_wr_ack)&&(i_axi_bresp[1]) && i_axi_reset_n;
 
 `define	SLAVE_ASSUME	assert
 `define	SLAVE_ASSERT	assume
@@ -146,8 +171,6 @@ module faxil_master #(
 	//
 	// Setup
 	//
-	reg	f_past_valid;
-	integer	k;
 
 	initial	f_past_valid = 1'b0;
 	always @(posedge i_clk)
@@ -155,13 +178,17 @@ module faxil_master #(
 
 	////////////////////////////////////////////////////////////////////////
 	//
-	//
 	// Reset properties
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
 	//
 	// Insist that the reset signal start out asserted (negative), and
 	// remain so for 16 clocks.
 	//
-	////////////////////////////////////////////////////////////////////////
+
 	generate if (F_OPT_ASSUME_RESET)
 	begin : ASSUME_INITIAL_RESET
 		always @(*)
@@ -176,7 +203,6 @@ module faxil_master #(
 
 	//
 	// If asserted, the reset must be asserted for a minimum of 16 clocks
-	reg	[3:0]	f_reset_length;
 	initial	f_reset_length = 0;
 	always @(posedge i_clk)
 	if (F_OPT_NO_RESET || i_axi_reset_n)
@@ -216,7 +242,8 @@ module faxil_master #(
 	// a reset.  Not in the spec, but also checked here is that they must
 	// also be set low initially.
 	always @(posedge i_clk)
-	if ((!f_past_valid)||(!$past(i_axi_reset_n)))
+	if ((!f_past_valid && F_OPT_INITIAL)
+				||(f_past_valid && !$past(i_axi_reset_n)))
 	begin
 		`SLAVE_ASSUME(!i_axi_arvalid);
 		`SLAVE_ASSUME(!i_axi_awvalid);
@@ -226,74 +253,65 @@ module faxil_master #(
 		`SLAVE_ASSERT(!i_axi_rvalid);
 	end
 
+	generate if (F_OPT_ASYNC_RESET)
+	begin
+		always @(*)
+		if (!i_axi_reset_n)
+		begin
+			`SLAVE_ASSUME(!i_axi_arvalid);
+			`SLAVE_ASSUME(!i_axi_awvalid);
+			`SLAVE_ASSUME(!i_axi_wvalid);
+			//
+			`SLAVE_ASSERT(!i_axi_bvalid);
+			`SLAVE_ASSERT(!i_axi_rvalid);
+		end
+	end endgenerate
+	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
-	//
-	// Constant input assumptions (AxCACHE and AxPROT)
-	//
-	//
+	// xRESP checking
+	// {{{
 	////////////////////////////////////////////////////////////////////////
 
 	always @(*)
-	if (i_axi_awvalid)
-	begin
-		`SLAVE_ASSUME(i_axi_awprot  == 3'h0);
-		if (F_OPT_HAS_CACHE)
-			// Normal non-cachable, but bufferable
-			`SLAVE_ASSUME(i_axi_awcache == 4'h3);
-		else
-			// No caching capability
-			`SLAVE_ASSUME(i_axi_awcache == 4'h0);
-	end
-
-	always @(*)
-	if (i_axi_arvalid)
-	begin
-		`SLAVE_ASSUME(i_axi_arprot  == 3'h0);
-		if (F_OPT_HAS_CACHE)
-			// Normal non-cachable, but bufferable
-			`SLAVE_ASSUME(i_axi_arcache == 4'h3);
-		else
-			// No caching capability
-			`SLAVE_ASSUME(i_axi_arcache == 4'h0);
-	end
-
-	always @(*)
-	if ((i_axi_bvalid)&&(!F_OPT_BRESP))
+	if ((i_axi_bvalid)&&(!F_OPT_BRESP)&&(F_OPT_INITIAL || i_axi_reset_n))
 		`SLAVE_ASSERT(i_axi_bresp == 0);
 	always @(*)
-	if ((i_axi_rvalid)&&(!F_OPT_RRESP))
+	if ((i_axi_rvalid)&&(!F_OPT_RRESP)&&(F_OPT_INITIAL || i_axi_reset_n))
 		`SLAVE_ASSERT(i_axi_rresp == 0);
 	always @(*)
-	if (i_axi_bvalid)
+	if (i_axi_bvalid&&(F_OPT_INITIAL || i_axi_reset_n))
 		`SLAVE_ASSERT(i_axi_bresp != 2'b01); // Exclusive access not allowed
 	always @(*)
-	if (i_axi_rvalid)
+	if (i_axi_rvalid&&(F_OPT_INITIAL || i_axi_reset_n))
 		`SLAVE_ASSERT(i_axi_rresp != 2'b01); // Exclusive access not allowed
 
-
+	// }}}
 	////////////////////////////////////////////////////////////////////////
-	//
 	//
 	// Stability properties--what happens if valid and not ready
-	//
-	//
+	// {{{
 	////////////////////////////////////////////////////////////////////////
+	//
+	//
 
 	// Assume any response from the bus will not change prior to that
 	// response being accepted
 	always @(posedge i_clk)
-	if ((f_past_valid)&&($past(i_axi_reset_n)))
+	if ((f_past_valid)&&($past(i_axi_reset_n))
+			&&(!F_OPT_ASYNC_RESET || i_axi_reset_n))
 	begin
 		// Write address channel
 		if ((f_past_valid)&&($past(i_axi_awvalid && !i_axi_awready)))
 		begin
 			`SLAVE_ASSUME(i_axi_awvalid);
 			`SLAVE_ASSUME($stable(i_axi_awaddr));
+			`SLAVE_ASSUME($stable(i_axi_awprot));
 		end
 
 		// Write data channel
-		if ((f_past_valid)&&($past(i_axi_wvalid && !i_axi_wready)))
+		if ((f_past_valid && (!F_OPT_ASYNC_RESET || i_axi_reset_n))
+				&&($past(i_axi_wvalid && !i_axi_wready)))
 		begin
 			`SLAVE_ASSUME(i_axi_wvalid);
 			`SLAVE_ASSUME($stable(i_axi_wstrb));
@@ -301,20 +319,24 @@ module faxil_master #(
 		end
 
 		// Incoming Read address channel
-		if ((f_past_valid)&&($past(i_axi_arvalid && !i_axi_arready)))
+		if ((f_past_valid && (!F_OPT_ASYNC_RESET || i_axi_reset_n))
+			&&($past(i_axi_arvalid && !i_axi_arready)))
 		begin
 			`SLAVE_ASSUME(i_axi_arvalid);
 			`SLAVE_ASSUME($stable(i_axi_araddr));
+			`SLAVE_ASSUME($stable(i_axi_arprot));
 		end
 
-		if ((f_past_valid)&&($past(i_axi_rvalid && !i_axi_rready)))
+		if ((f_past_valid && (!F_OPT_ASYNC_RESET || i_axi_reset_n))
+			&&($past(i_axi_rvalid && !i_axi_rready)))
 		begin
 			`SLAVE_ASSERT(i_axi_rvalid);
 			`SLAVE_ASSERT($stable(i_axi_rresp));
 			`SLAVE_ASSERT($stable(i_axi_rdata));
 		end
 
-		if ((f_past_valid)&&($past(i_axi_bvalid && !i_axi_bready)))
+		if ((f_past_valid && (!F_OPT_ASYNC_RESET || i_axi_reset_n))
+			&&($past(i_axi_bvalid && !i_axi_bready)))
 		begin
 			`SLAVE_ASSERT(i_axi_bvalid);
 			`SLAVE_ASSERT($stable(i_axi_bresp));
@@ -322,13 +344,16 @@ module faxil_master #(
 	end
 
 	// Nothing should be returned or requested on the first clock
-	initial	`SLAVE_ASSUME(!i_axi_arvalid);
-	initial	`SLAVE_ASSUME(!i_axi_awvalid);
-	initial	`SLAVE_ASSUME(!i_axi_wvalid);
-	//
-	initial	`SLAVE_ASSERT(!i_axi_bvalid);
-	initial	`SLAVE_ASSERT(!i_axi_rvalid);
-
+	generate if (F_OPT_INITIAL)
+	begin : INITIAL_VALUE_CHECKS
+		initial	`SLAVE_ASSUME(!i_axi_arvalid);
+		initial	`SLAVE_ASSUME(!i_axi_awvalid);
+		initial	`SLAVE_ASSUME(!i_axi_wvalid);
+		//
+		initial	`SLAVE_ASSERT(!i_axi_bvalid);
+		initial	`SLAVE_ASSERT(!i_axi_rvalid);
+	end endgenerate
+	// }}}
 	////////////////////////////////////////////////////////////////////////
 	//
 	//
@@ -339,7 +364,7 @@ module faxil_master #(
 	//
 	generate if (F_AXI_MAXWAIT > 0)
 	begin : CHECK_STALL_COUNT
-		reg	[(F_LGDEPTH-1):0]	f_axi_awstall,
+		reg	[LGTIMEOUT-1:0]		f_axi_awstall,
 						f_axi_wstall,
 						f_axi_arstall;
 
@@ -363,7 +388,7 @@ module faxil_master #(
 			// If we are waiting for the write channel to be valid
 			// then don't count stalls
 			f_axi_awstall <= 0;
-		else if ((!i_axi_bvalid)||(i_axi_bready))
+		else
 			f_axi_awstall <= f_axi_awstall + 1'b1;
 
 		always @(*)
@@ -386,7 +411,7 @@ module faxil_master #(
 			// If we are waiting for the write address channel
 			// to be valid, then don't count stalls
 			f_axi_wstall <= 0;
-		else if ((!i_axi_bvalid)||(i_axi_bready))
+		else
 			f_axi_wstall <= f_axi_wstall + 1'b1;
 
 		always @(*)
@@ -406,7 +431,7 @@ module faxil_master #(
 		if ((!i_axi_reset_n)||(!i_axi_arvalid)||(i_axi_arready)
 				||(i_axi_rvalid))
 			f_axi_arstall <= 0;
-		else if (i_axi_rready)
+		else
 			f_axi_arstall <= f_axi_arstall + 1'b1;
 
 		always @(*)
@@ -429,7 +454,7 @@ module faxil_master #(
 	//
 	generate if (F_AXI_MAXRSTALL > 0)
 	begin : CHECK_RESPONSE_STALLS
-		reg	[(F_LGDEPTH-1):0]	f_axi_bstall,
+		reg	[LGTIMEOUT-1:0]		f_axi_bstall,
 						f_axi_rstall;
 
 		// AXI write response channel
@@ -537,6 +562,7 @@ module faxil_master #(
 	else case({ (axi_wr_req), (axi_wr_ack) })
 	2'b01: f_axi_wr_outstanding <= f_axi_wr_outstanding - 1'b1;
 	2'b10: f_axi_wr_outstanding <= f_axi_wr_outstanding + 1'b1;
+	default: begin end
 	endcase
 
 	//
@@ -548,6 +574,7 @@ module faxil_master #(
 	else case({ (axi_ard_req), (axi_rd_ack) })
 	2'b01: f_axi_rd_outstanding <= f_axi_rd_outstanding - 1'b1;
 	2'b10: f_axi_rd_outstanding <= f_axi_rd_outstanding + 1'b1;
+	default: begin end
 	endcase
 
 	//
@@ -562,13 +589,13 @@ module faxil_master #(
 	//
 	// That means that requests need to stop when we're almost full
 	always @(posedge i_clk)
-	if (f_axi_awr_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
+	if ((F_OPT_INITIAL || i_axi_reset_n) && f_axi_awr_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
 		assert(!i_axi_awvalid);
 	always @(posedge i_clk)
-	if (f_axi_wr_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
+	if ((F_OPT_INITIAL || i_axi_reset_n) && f_axi_wr_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
 		assert(!i_axi_wvalid);
 	always @(posedge i_clk)
-	if (f_axi_rd_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
+	if ((F_OPT_INITIAL || i_axi_reset_n) && f_axi_rd_outstanding == { {(F_LGDEPTH-1){1'b1}}, 1'b0} )
 		assert(!i_axi_arvalid);
 
 	////////////////////////////////////////////////////////////////////////
@@ -588,7 +615,7 @@ module faxil_master #(
 	generate if (F_AXI_MAXDELAY > 0)
 	begin : CHECK_MAX_DELAY
 
-		reg	[(F_LGDEPTH-1):0]	f_axi_wr_ack_delay,
+		reg	[LGTIMEOUT-1:0]		f_axi_wr_ack_delay,
 						f_axi_rd_ack_delay;
 
 		//
@@ -646,7 +673,7 @@ module faxil_master #(
 	// AXI write response channel
 	//
 	always @(posedge i_clk)
-	if (i_axi_bvalid)
+	if (i_axi_bvalid && (F_OPT_INITIAL || i_axi_reset_n))
 	begin
 		// No BVALID w/o an outstanding request
 		`SLAVE_ASSERT(f_axi_awr_outstanding > 0);
@@ -657,7 +684,7 @@ module faxil_master #(
 	// AXI read data channel signals
 	//
 	always @(posedge i_clk)
-	if (i_axi_rvalid)
+	if (i_axi_rvalid && (F_OPT_INITIAL || i_axi_reset_n))
 		// No RVALID w/o an outstanding request
 		`SLAVE_ASSERT(f_axi_rd_outstanding > 0);
 
@@ -721,18 +748,58 @@ module faxil_master #(
 	//
 	// AXI write response channel
 	//
-	always @(posedge i_clk)
-	if (!F_OPT_READ_ONLY)
-		// Make sure we can get a write acknowledgment
-		cover((i_axi_bvalid)&&(i_axi_bready));
+	generate if (!F_OPT_READ_ONLY)
+	begin
+		always @(posedge i_clk)
+			// Make sure we can get a write acknowledgment
+			cover((i_axi_bvalid)&&(i_axi_bready));
+	end endgenerate
 
 	//
 	// AXI read response channel
 	//
-	always @(posedge i_clk)
-	if (!F_OPT_WRITE_ONLY)
-		// Make sure we can get a response from the read channel
-		cover((i_axi_rvalid)&&(i_axi_rready));
+	generate if (!F_OPT_WRITE_ONLY)
+	begin
+		always @(posedge i_clk)
+			// Make sure we can get a response from the read channel
+			cover((i_axi_rvalid)&&(i_axi_rready));
+	end endgenerate
+
+	generate if (!F_OPT_READ_ONLY && F_OPT_COVER_BURST > 0)
+	begin : COVER_WRITE_BURSTS
+
+		reg	[31:0]	cvr_writes;
+
+		initial	cvr_writes = 0;
+		always @(posedge i_clk)
+		if (!i_axi_reset_n)
+			cvr_writes <= 0;
+		else if (i_axi_bvalid && i_axi_bready && i_axi_bresp == 2'b00
+				&& !(&cvr_writes))
+			cvr_writes <= cvr_writes + 1;
+
+		always @(*)
+			cover(cvr_writes == F_OPT_COVER_BURST);
+
+	end endgenerate
+
+	generate if (!F_OPT_WRITE_ONLY && F_OPT_COVER_BURST > 0)
+	begin : COVER_READ_BURSTS
+
+		reg	[31:0]	cvr_reads;
+
+		initial	cvr_reads = 0;
+		always @(posedge i_clk)
+		if (!i_axi_reset_n)
+			cvr_reads <= 0;
+		else if (i_axi_rvalid && i_axi_rready && i_axi_rresp == 2'b00
+				&& !(&cvr_reads))
+			cvr_reads <= cvr_reads + 1;
+
+		always @(*)
+			cover(cvr_reads == F_OPT_COVER_BURST);
+
+	end endgenerate
 
 `undef	SLAVE_ASSUME
 `undef	SLAVE_ASSERT
