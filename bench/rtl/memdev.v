@@ -18,7 +18,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 // }}}
-// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// Copyright (C) 2015-2023, Gisselquist Technology, LLC
 // {{{
 // This file is part of the debugging interface demonstration.
 //
@@ -50,7 +50,7 @@ module	memdev #(
 		parameter	LGMEMSZ=15, DW=32, EXTRACLOCK= 1,
 		parameter	HEXFILE="",
 		parameter [0:0]	OPT_ROM = 1'b0,
-		localparam	AW = LGMEMSZ - 2
+		localparam	AW = LGMEMSZ - $clog2(DW/8)
 		// }}}
 	) (
 		// {{{
@@ -99,12 +99,16 @@ module	memdev #(
 		// }}}
 	end else begin
 		// {{{
-		reg		last_wstb, last_stb;
+		reg			last_wstb, last_stb;
 		reg	[(AW-1):0]	last_addr;
 		reg	[(DW-1):0]	last_data;
 		reg	[(DW/8-1):0]	last_sel;
 
+		initial	last_wstb = 0;
 		always @(posedge i_clk)
+		if (i_reset)
+			last_wstb <= 0;
+		else
 			last_wstb <= (i_wb_stb)&&(i_wb_we);
 
 		initial	last_stb = 1'b0;
@@ -138,16 +142,13 @@ module	memdev #(
 	generate if (!OPT_ROM)
 	begin : WRITE_TO_MEMORY
 
+		integer	ik;
+
 		always @(posedge i_clk)
 		begin
-			if ((w_wstb)&&(w_sel[3]))
-				mem[w_addr][31:24] <= w_data[31:24];
-			if ((w_wstb)&&(w_sel[2]))
-				mem[w_addr][23:16] <= w_data[23:16];
-			if ((w_wstb)&&(w_sel[1]))
-				mem[w_addr][15: 8] <= w_data[15:8];
-			if ((w_wstb)&&(w_sel[0]))
-				mem[w_addr][ 7: 0] <= w_data[7:0];
+			for(ik=0; ik<$clog2(DW/8); ik=ik+1)
+			if ((w_wstb)&&(w_sel[ik]))
+				mem[w_addr][8*ik +: 8] <= w_data[8*ik +: 8];
 		end
 `ifdef	VERILATOR
 	end else begin : VERILATOR_ROM

@@ -37,7 +37,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 // }}}
-// Copyright (C) 2017-2021, Gisselquist Technology, LLC
+// Copyright (C) 2017-2023, Gisselquist Technology, LLC
 // {{{
 // This file is part of the hexbus debugging interface.
 //
@@ -81,7 +81,7 @@ module	fwb_master #(
 		// add.
 		parameter [0:0]		F_OPT_RMW_BUS_OPTION = 1,
 		//
-		// 
+		//
 		// If true, allow the bus to issue multiple discontinuous
 		// requests.
 		// Unlike F_OPT_RMW_BUS_OPTION, these requests may be issued
