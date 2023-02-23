@@ -61,7 +61,7 @@ VINCD   := $(VROOT)/include
 VINC	:= -I$(VINCD) -I$(VOBJDR) -I../../sw/host -I../../sw
 # We'll need to build these two Verilater files, and include them with our
 # build
-VSRCRAW := verilated.cpp verilated_vcd_c.cpp
+VSRCRAW := verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
 VSRC    := $(addprefix $(VINCD)/,$(VSRCRAW))
 VOBJ    := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(VSRCRAW)))
 INCS	:= $(VINC)
@@ -102,12 +102,12 @@ $(OBJDIR)/%.o: $(VINCD)/%.cpp
 # Build our actual target.  Note the dependency on the $(OBJECTS) list of
 # object files above
 testbus_tb: $(TBOBJECTS) $(VOBJDR)/Vtestbus__ALL.a
-	$(CXX) $(CFLAGS) $(TBOBJECTS) $(VOBJDR)/Vtestbus__ALL.a -o $@
+	$(CXX) $(CFLAGS) $(TBOBJECTS) $(VOBJDR)/Vtestbus__ALL.a -lpthread -o $@
 #
 #
 #
 autotest: $(AUTOOBJ) $(VOBJDR)/Vtestbus__ALL.a
-	$(CXX) $(CFLAGS) $(AUTOOBJ) $(VOBJDR)/Vtestbus__ALL.a -o $@
+	$(CXX) $(CFLAGS) $(AUTOOBJ) $(VOBJDR)/Vtestbus__ALL.a -lpthread -o $@
 
 test:
 #
