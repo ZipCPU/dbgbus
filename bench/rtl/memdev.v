@@ -72,11 +72,16 @@ module	memdev #(
 	wire	[(AW-1):0]	w_addr;
 	wire	[(DW/8-1):0]	w_sel;
 
+	// Declare the memory itself
 	reg	[(DW-1):0]	mem	[0:((1<<AW)-1)];
 	// }}}
-
-	// Pre-load the memory
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Pre-load memory if HEXFILE points to a valid file
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 	generate if (HEXFILE != 0)
 	begin : PRELOAD_MEMORY
 
@@ -84,12 +89,16 @@ module	memdev #(
 
 	end endgenerate
 	// }}}
-
-	// Delay request if necessary
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Add a clock cycle to memory accesses (if required)
 	// {{{
-	generate
-	if (EXTRACLOCK == 0)
-	begin
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
+	generate if (EXTRACLOCK == 0)
+	begin : NO_EXTRA_CLOCK
 		// {{{
 		assign	w_wstb = (i_wb_stb)&&(i_wb_we);
 		assign	w_stb  = i_wb_stb;
@@ -97,8 +106,12 @@ module	memdev #(
 		assign	w_data = i_wb_data;
 		assign	w_sel  = i_wb_sel;
 		// }}}
-	end else begin
+	end else begin : EXTRA_MEM_CLOCK_CYCLE
 		// {{{
+		// This is easier than a normal Wishbone delay, since we never
+		// stall and there are never any stalls on the output (like
+		// AXI).  Hence we just pipeline all our incoming registers and
+		// be done with it.
 		reg			last_wstb, last_stb;
 		reg	[(AW-1):0]	last_addr;
 		reg	[(DW-1):0]	last_data;
@@ -133,46 +146,65 @@ module	memdev #(
 		// }}}
 	end endgenerate
 	// }}}
-
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Read from memory
+	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
 	always @(posedge i_clk)
 		o_wb_data <= mem[w_addr];
-
-	// Write to memory
+	// }}}
+	////////////////////////////////////////////////////////////////////////
+	//
+	// (Optionally) Write to memory
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
 	generate if (!OPT_ROM)
 	begin : WRITE_TO_MEMORY
-
+		// {{{
 		integer	ik;
 
 		always @(posedge i_clk)
+		if (w_wstb)
 		begin
-			for(ik=0; ik<$clog2(DW/8); ik=ik+1)
-			if ((w_wstb)&&(w_sel[ik]))
-				mem[w_addr][8*ik +: 8] <= w_data[8*ik +: 8];
+			for(ik=0; ik<DW/8; ik=ik+1)
+			if (w_sel[ik])
+				mem[w_addr][ik*8 +: 8] <= w_data[ik*8 +: 8];
 		end
 `ifdef	VERILATOR
 	end else begin : VERILATOR_ROM
 
 		// Make Verilator happy
 		// Verilator lint_off UNUSED
-		wire	[DW+DW/8:0]	rom_unused;
-		assign	rom_unused = { w_wstb, w_data, w_sel };
+		wire	rom_unused;
+		assign	rom_unused = &{ 1'b0, w_wstb, w_data, w_sel };
 		// Verilator lint_on  UNUSED
 `endif
+		// }}}
 	end endgenerate
 	// }}}
-
-	// o_wb_ack
+	////////////////////////////////////////////////////////////////////////
+	//
+	// Wishbone return signaling
 	// {{{
+	////////////////////////////////////////////////////////////////////////
+	//
+	//
+
 	initial	o_wb_ack = 1'b0;
 	always @(posedge i_clk)
 	if (i_reset)
 		o_wb_ack <= 1'b0;
 	else
 		o_wb_ack <= (w_stb)&&(i_wb_cyc);
-	// }}}
 
 	assign	o_wb_stall = 1'b0;
+	// }}}
 
 	// Make verilator happy
 	// {{{

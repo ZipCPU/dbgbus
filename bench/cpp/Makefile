@@ -65,7 +65,7 @@ VSRCRAW := verilated.cpp verilated_vcd_c.cpp verilated_threads.cpp
 VSRC    := $(addprefix $(VINCD)/,$(VSRCRAW))
 VOBJ    := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(VSRCRAW)))
 INCS	:= $(VINC)
-CFLAGS	:= -Og -g -Wall $(INCS)
+CFLAGS	:= -Og -g -faligned-new -Wall $(INCS)
 #
 BUS := hexbus
 SUBMAKE := $(MAKE) --no-print-directory -C
