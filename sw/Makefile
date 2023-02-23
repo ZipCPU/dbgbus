@@ -1,7 +1,7 @@
 ################################################################################
 ##
 ## Filename:	Makefile
-##
+## {{{
 ## Project:	dbgbus, a collection of 8b channel to WB bus debugging protocols
 ##
 ## Purpose:	
@@ -11,9 +11,9 @@
 ##		Gisselquist Technology, LLC
 ##
 ################################################################################
-##
-## Copyright (C) 2015-2020, Gisselquist Technology, LLC
-##
+## }}}
+## Copyright (C) 2015-2023, Gisselquist Technology, LLC
+## {{{
 ## This file is part of the debugging interface demonstration.
 ## The debugging interface demonstration is free software (firmware): you can
 ## redistribute it and/or modify it under the terms of the GNU Lesser General
@@ -30,18 +30,21 @@
 ## along with this program.  (It's in the $(ROOT)/doc directory.  Run make
 ## with no target there if the PDF file isn't present.)  If not, see
 ## <http://www.gnu.org/licenses/> for a copy.
-##
+## }}}
 ## License:	LGPL, v3, as defined and found on www.gnu.org,
+## {{{
 ##		http://www.gnu.org/licenses/lgpl.html
 ##
 ##
 ################################################################################
 ##
-##
 .PHONY: all
+## }}}
 PROGRAMS := wbregs netuart
 SCOPES :=
 all: $(PROGRAMS) $(SCOPES)
+## Definitions
+## {{{
 CXX := g++
 OBJDIR := obj-pc
 BUS := hexbus
@@ -54,7 +57,10 @@ BUSOBJS := $(addprefix $(OBJDIR)/,$(subst .cpp,.o,$(LCLSRCS) $(EXTSRCS)))
 CFLAGS := -g -Wall -I. -I../../rtl -I../$(BUS)/sw
 LIBS :=
 SUBMAKE := $(MAKE) --no-print-directory -C
+## }}}
 
+## Generic targets
+## {{{
 .PHONY: objects
 objects:
 	echo $(BUSOBJS)
@@ -73,10 +79,7 @@ $(OBJDIR)/%.o: ../hexbus/sw/%.cpp
 $(OBJDIR)/hexbus.o: ../hexbus/sw/hexbus.cpp
 	$(mk-objdir)
 	$(CXX) $(CFLAGS) -c $< -o $@
-
-.PHONY: clean
-clean:
-	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out tags *.o
+## }}}
 
 $(OBJDIR)/dumpflash.o:   dumpflash.cpp regdefs.h
 
@@ -99,6 +102,12 @@ define	mk-objdir
 	@bash -c "if [ ! -e $(OBJDIR) ]; then mkdir -p $(OBJDIR); fi"
 endef
 
+tags: $(DEPSRCS) $(HEADERS)
+	@echo "Generating tags"
+	@ctags $(DEPSRCS) $(HEADERS)
+
+.PHONY: depends
+## {{{
 define	build-depends
 	@echo "Building dependency file(s)"
 	$(mk-objdir)
@@ -107,14 +116,16 @@ define	build-depends
 	@rm $(OBJDIR)/xdepends.txt
 endef
 
-tags: $(DEPSRCS) $(HEADERS)
-	@echo "Generating tags"
-	@ctags $(DEPSRCS) $(HEADERS)
-
-.PHONY: depends
 depends: $(OBJDIR)/depends.txt
 
 $(OBJDIR)/depends.txt: $(DEPSRCS) $(HEADERS)
 	$(build-depends)
+## }}}
+
+.PHONY: clean
+## {{{
+clean:
+	rm -rf $(OBJDIR)/ $(PROGRAMS) a.out tags *.o
+## }}}
 
 -include $(OBJDIR)/depends.txt

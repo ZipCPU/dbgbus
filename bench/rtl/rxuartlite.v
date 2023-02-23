@@ -21,7 +21,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 // }}}
-// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// Copyright (C) 2015-2023, Gisselquist Technology, LLC
 // {{{
 // This file is part of the debugging interface demonstration.
 //
@@ -54,7 +54,7 @@ module rxuartlite #(
 `ifdef	FORMAL
 		parameter  [(TIMER_BITS-1):0]	CLOCKS_PER_BAUD = 16, // Necessary for formal proof
 `else
-		parameter  [(TIMER_BITS-1):0]	CLOCKS_PER_BAUD = 868,	// 115200 MBaud at 100MHz
+		parameter  [(TIMER_BITS-1):0]	CLOCKS_PER_BAUD = 868,	// 115200 Baud at 100MHz
 `endif
 		localparam			TB = TIMER_BITS,
 		//

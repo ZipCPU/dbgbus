@@ -12,7 +12,7 @@
 ##
 ################################################################################
 ## }}}
-## Copyright (C) 2015-2021, Gisselquist Technology, LLC
+## Copyright (C) 2015-2023, Gisselquist Technology, LLC
 ## {{{
 ## This file is part of the debugging interface demonstration.
 ##
@@ -120,15 +120,6 @@ test: autotest
 	./autotest
 
 #
-# The "clean" target, removing any and all remaining build (and test) products
-#
-.PHONY: clean
-clean:
-	rm -f *.vcd
-	rm -f $(PROGRAMS)
-	rm -rf $(OBJDIR)/
-
-#
 # The "depends" target, to know what files things depend upon.  The depends
 # file itself is kept in $(OBJDIR)/depends.txt
 #
@@ -165,6 +156,15 @@ endef
 tags:	$(SOURCES) $(HEADERS)
 	@echo "Generating tags"
 	@ctags $(SOURCES) $(HEADERS)
+
+#
+# The "clean" target, removing any and all remaining build (and test) products
+#
+.PHONY: clean
+clean:
+	rm -f *.vcd
+	rm -f $(PROGRAMS)
+	rm -rf $(OBJDIR)/
 
 #
 # Include our generated dependency file.  The "-" in front of the include

@@ -22,7 +22,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 // }}}
-// Copyright (C) 2015-2021, Gisselquist Technology, LLC
+// Copyright (C) 2015-2023, Gisselquist Technology, LLC
 // {{{
 // This file is part of the debugging interface demonstration.
 //
